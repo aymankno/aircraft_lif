@@ -39,10 +39,10 @@ landings = 0
 touch_gos = 0
 y_old = None
 
-video = "video.mp4"
-video2 = "video2.mp4"
-# video_3 = "videos/video3.mp4"
-cap = cv2.VideoCapture("video2.mp4")
+#video = "video.mp4"
+video2 = "videos/video2.mp4"
+#video_3 = "videos/video3.mp4"
+cap = cv2.VideoCapture(video2)
 
 prev_frame = None
 y_old = None
