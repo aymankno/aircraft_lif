@@ -1,5 +1,5 @@
+### aircraft_counter
 Ayman Aghel - 9/14/2026
-aircraft_counter
 
 A Leaky Integrate Fire network (LIF) to count aircraft and identify what stage of flight they are in: Takeoff, Landing, or Touch and Go. Designed for General Aviation (GA) airports without towers to recieve grants from the Federal Aviation Administration to improve safety.
 
