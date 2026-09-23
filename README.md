@@ -16,3 +16,8 @@ Future changes: landing has extremely larger takeoff voltages due to higher alph
 Fixed the leak mechanism. Was originally fluctuating up between 1 and 10, fixed by changing the math in leak() and including a "round" feature by defaulting self.V to 0 when below a certain voltage (0.001). Tau and dt changed, dt decreased to 0.01 (1.0 / 100.0). On test footage (video2), achieves a 100% accuracy. Added the video2 to the repository.
 
 Future changes: Fix the go around neuron (neuron2), test on new footage. Also, may include a limit on time between events if necessary--like a minimum of 60 seconds between each takeoff, landing, and touch/go.
+
+### 9/21/2026:
+Added a go-around mechanism, added another neuron (neuron_4), and re-named all of the neurons to be neuron 1-4. The go-around architecture I imagine is first an ascent neuron (neuron_4) being fired, then running electricity to the descent neuron (neuron_3), and only passing if neuron_3 has any charge from a recent descent. If there is no charge, it won't pass. I chose this architecture because my initial approach was flawed and would not have held up under pressure. Initially, I was going to use neuron_2 (the previous, sole touch/go neuron) and have it build charge exclusively on the descent (when -25 < alpha < -1) and count a go-around when any positive alpha was detected. This approach would not have held up due to noise, so I decided to use the alternative architecture. Minor changes: changed takeoff neuron (neuron_1) thresh.
+
+Future changes: Test the go around neurons (neuron_3 + neuron_4) on go-around footage and change paramaters as nessescary. Still considering a time limit between events; likely with a dedicated neuron that charges when any activity is occuring (or counted). Very likely.
