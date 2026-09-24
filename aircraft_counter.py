@@ -21,7 +21,7 @@ class LIF_neuron:
         return V_new, did_fire
 
     def leak(self):
-        if self.V < 0.001:
+        if self.V < 0.01:
             self.V = 0
         V_new = self.V + (self.dt / self.tau) * ((-1 * self.V))
         self.V = V_new
@@ -36,11 +36,16 @@ neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 # neuron_2: Landing
 neuron_2 = LIF_neuron(tau=0.1, thresh=3.0, reset=0, dt=1.0/100.0)
 
-# neuron_3: touch/go LAYER 1 - descent
-neuron_3 = LIF_neuron(tau=1, thresh=0.1, reset=0, dt=1.0/100.0)
+# neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT
+neuron_3 = LIF_neuron(tau=5.0, thresh=0.1, reset=0, dt=1.0/100.0)
 
-# neuron_4: touch/go LAYER 2 - ascent
-neuron_4 = LIF_neuron(tau=1, thresh=0.1, reset=0, dt=1.0/100.0)
+# neuron_4: touch/go LAYER 2 - ascent. PARAMATERS WILL NEED ADJUSTMENT
+neuron_4 = LIF_neuron(tau=1.0, thresh=20.0, reset=0, dt=1.0/100.0)
+
+# neuron_5: time between events. reset = voltage after event
+neuron_5 = LIF_neuron(tau=5.0, thresh=0.1, reset=1.0, dt=1.0/100.0)
+
+
 
 takeoffs = 0
 landings = 0
@@ -48,7 +53,7 @@ touch_gos = 0
 y_old = None
 
 video1 = "video.mp4"
-video2 = "videos/video2.mp4"
+video2 = "/Users/aymanaghel/Desktop/LIF/github LIF/videos/video2.mp4"
 #video_3 = "videos/video3.mp4"
 cap = cv2.VideoCapture(video2)
 
@@ -85,9 +90,11 @@ while True:
                             _, fired_2 = neuron_2.step(abs(delta_y))
                             _, fired_3 = neuron_3.step(abs(delta_y))
                             if fired_2 == True:
-                                landings += 1
-                                print("Landing") 
-                                neuron_2.V = neuron_2.reset                        
+                                if neuron_5.V < neuron_5.thresh:
+                                    landings += 1
+                                    print("Landing") 
+                                    neuron_5.V = neuron_5.reset
+                                    neuron_2.V = neuron_2.reset                        
 
                 if 0.1 <= delta_y <= 15:
                     if right <= 1250:
@@ -95,16 +102,20 @@ while True:
                             _, fired_1 = neuron_1.step(abs(delta_y))
                             _, fired_4 = neuron_4.step(abs(delta_y))
                             if fired_1 == True:
-                                takeoffs += 1
-                                print("Takeoff")
-                                neuron_1.V = neuron_1.reset
-                            ### go-around is experimental mechanism
+                                if neuron_5.V < neuron_5.thresh:
+                                        takeoffs += 1
+                                        print("Takeoff")
+                                        neuron_5.V = neuron_5.reset
+                                        neuron_1.V = neuron_1.reset
+                            ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
                             if fired_4 == True:
                                 if neuron_3.V > 0.1:
-                                    touch_gos += 1
-                                    print("Touch and go")
-                                    neuron_3.V = neuron_3.reset
-                                    neuron_4.V = neuron_4.reset
+                                    if neuron_5.V < neuron_5.thresh:
+                                        touch_gos += 1
+                                        print("Touch and go")
+                                        neuron_5.V = neuron_5.reset
+                                        neuron_3.V = neuron_3.reset
+                                        neuron_4.V = neuron_4.reset
 
     if neuron_1.V > 0:
         neuron_1.leak()
@@ -114,6 +125,8 @@ while True:
         neuron_3.leak()
     if neuron_4.V > 0:
         neuron_4.leak()
+    if neuron_5.V > 0:
+        neuron_5.leak()
         
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
