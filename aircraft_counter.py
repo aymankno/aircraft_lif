@@ -30,6 +30,15 @@ def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
 
+def within_paramaters(min, max):
+    is_within = False
+    if min <= delta_y <= max:
+        if right <= 1250:
+            if (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT]) <= 750:
+                is_within = True
+    return is_within
+
+
 # neuron_1: Takeoff
 neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 
@@ -53,7 +62,7 @@ touch_gos = 0
 y_old = None
 
 video1 = "video.mp4"
-video2 = "/Users/aymanaghel/Desktop/LIF/github LIF/videos/video2.mp4"
+video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
 #video_3 = "videos/video3.mp4"
 cap = cv2.VideoCapture(video2)
 
@@ -84,38 +93,38 @@ while True:
                 delta_y = get_slope(y_old, centroid)
                 y_old = centroid
                 cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
-                if right <= 1250:
-                    if (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT]) <= 750:
-                        if -25 <= delta_y <= -0.1:
-                            _, fired_2 = neuron_2.step(abs(delta_y))
-                            _, fired_3 = neuron_3.step(abs(delta_y))
-                            if fired_2 == True:
-                                if neuron_5.V < neuron_5.thresh:
-                                    landings += 1
-                                    print("Landing") 
-                                    neuron_5.V = neuron_5.reset
-                                    neuron_2.V = neuron_2.reset                        
 
-                if 0.1 <= delta_y <= 15:
-                    if right <= 1250:
-                        if (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT]) <= 750:
-                            _, fired_1 = neuron_1.step(abs(delta_y))
-                            _, fired_4 = neuron_4.step(abs(delta_y))
-                            if fired_1 == True:
+                ascent_paramaters = within_paramaters(-25, -0.1)
+                if ascent_paramaters == True:
+                    _, fired_2 = neuron_2.step(abs(delta_y))
+                    _, fired_3 = neuron_3.step(abs(delta_y))
+                    if fired_2 == True:
+                        if neuron_5.V < neuron_5.thresh:
+                            landings += 1
+                            print("Landing") 
+                            neuron_5.V = neuron_5.reset
+                            neuron_2.V = neuron_2.reset                        
+
+                descent_paramaters = within_paramaters(0.1, 15)
+                if descent_paramaters == True:
+                    _, fired_1 = neuron_1.step(abs(delta_y))
+                    _, fired_4 = neuron_4.step(abs(delta_y))
+                    if fired_1 == True:
+                        if neuron_5.V < neuron_5.thresh:
+                                    takeoffs += 1
+                                    print("Takeoff")
+                                    neuron_5.V = neuron_5.reset
+                                    neuron_1.V = neuron_1.reset
+
+                    ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
+                    if fired_4 == True:
+                            if neuron_3.V > 0.1:
                                 if neuron_5.V < neuron_5.thresh:
-                                        takeoffs += 1
-                                        print("Takeoff")
-                                        neuron_5.V = neuron_5.reset
-                                        neuron_1.V = neuron_1.reset
-                            ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
-                            if fired_4 == True:
-                                if neuron_3.V > 0.1:
-                                    if neuron_5.V < neuron_5.thresh:
-                                        touch_gos += 1
-                                        print("Touch and go")
-                                        neuron_5.V = neuron_5.reset
-                                        neuron_3.V = neuron_3.reset
-                                        neuron_4.V = neuron_4.reset
+                                    touch_gos += 1
+                                    print("Touch and go")
+                                    neuron_5.V = neuron_5.reset
+                                    neuron_3.V = neuron_3.reset
+                                    neuron_4.V = neuron_4.reset
 
     if neuron_1.V > 0:
         neuron_1.leak()
