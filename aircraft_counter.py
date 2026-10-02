@@ -38,12 +38,11 @@ def within_paramaters(min, max):
                 is_within = True
     return is_within
 
-
 # neuron_1: Takeoff
 neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 
 # neuron_2: Landing
-neuron_2 = LIF_neuron(tau=0.1, thresh=3.0, reset=0, dt=1.0/100.0)
+neuron_2 = LIF_neuron(tau=0.1, thresh=2.5, reset=0, dt=1.0/100.0)
 
 # neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT
 neuron_3 = LIF_neuron(tau=5.0, thresh=0.1, reset=0, dt=1.0/100.0)
@@ -53,7 +52,6 @@ neuron_4 = LIF_neuron(tau=1.0, thresh=20.0, reset=0, dt=1.0/100.0)
 
 # neuron_5: time between events. reset = voltage after event
 neuron_5 = LIF_neuron(tau=5.0, thresh=0.1, reset=1.0, dt=1.0/100.0)
-
 
 
 takeoffs = 0
@@ -98,6 +96,9 @@ while True:
                 if ascent_paramaters == True:
                     _, fired_2 = neuron_2.step(abs(delta_y))
                     _, fired_3 = neuron_3.step(abs(delta_y))
+                    neuron_1.leak()
+                    neuron_4.leak()
+                    neuron_5.leak()
                     if fired_2 == True:
                         if neuron_5.V < neuron_5.thresh:
                             landings += 1
@@ -109,6 +110,9 @@ while True:
                 if descent_paramaters == True:
                     _, fired_1 = neuron_1.step(abs(delta_y))
                     _, fired_4 = neuron_4.step(abs(delta_y))
+                    neuron_2.leak()
+                    neuron_3.leak()
+                    neuron_5.leak()
                     if fired_1 == True:
                         if neuron_5.V < neuron_5.thresh:
                                     takeoffs += 1
@@ -125,17 +129,12 @@ while True:
                                     neuron_5.V = neuron_5.reset
                                     neuron_3.V = neuron_3.reset
                                     neuron_4.V = neuron_4.reset
-
-    if neuron_1.V > 0:
-        neuron_1.leak()
-    if neuron_2.V > 0:
-        neuron_2.leak()
-    if neuron_3.V > 0:
-        neuron_3.leak()
-    if neuron_4.V > 0:
-        neuron_4.leak()
-    if neuron_5.V > 0:
-        neuron_5.leak()
+                else:
+                    neuron_1.leak()
+                    neuron_2.leak()
+                    neuron_3.leak()
+                    neuron_4.leak()
+                    neuron_5.leak()
         
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
