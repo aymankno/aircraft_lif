@@ -9,19 +9,25 @@ class LIF_neuron:
         self.thresh = thresh
         self.reset = reset
         self.dt = dt
+        self.alpha = 0.6
+
+        self.old_input = 0
+
 
     def step(self, I_input):
         did_fire = False
-        V_new = self.V + (self.dt / self.tau) * ((-1 * self.V) + I_input)
+        smooth_input = ((self.alpha * I_input) + ((1 - self.alpha) * self.old_input))
+        V_new = self.V + (self.dt / self.tau) * ((-1 * self.V) + smooth_input)
         if V_new > self.thresh:
             did_fire = True
             V_new = self.reset
         self.V = V_new
+        old_input = smooth_input
 
         return V_new, did_fire
 
     def leak(self):
-        if self.V < 0.01:
+        if self.V < 0.05:
             self.V = 0
         V_new = self.V + (self.dt / self.tau) * ((-1 * self.V))
         self.V = V_new
@@ -42,7 +48,7 @@ def within_paramaters(min, max):
 neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 
 # neuron_2: Landing
-neuron_2 = LIF_neuron(tau=0.1, thresh=2.5, reset=0, dt=1.0/100.0)
+neuron_2 = LIF_neuron(tau=2.5, thresh=0.9, reset=0, dt=1.0/100.0)
 
 # neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT
 neuron_3 = LIF_neuron(tau=5.0, thresh=0.1, reset=0, dt=1.0/100.0)
@@ -51,7 +57,7 @@ neuron_3 = LIF_neuron(tau=5.0, thresh=0.1, reset=0, dt=1.0/100.0)
 neuron_4 = LIF_neuron(tau=1.0, thresh=20.0, reset=0, dt=1.0/100.0)
 
 # neuron_5: time between events. reset = voltage after event
-neuron_5 = LIF_neuron(tau=5.0, thresh=0.1, reset=1.0, dt=1.0/100.0)
+neuron_5 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0)
 
 
 takeoffs = 0
@@ -92,8 +98,10 @@ while True:
                 y_old = centroid
                 cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
 
-                ascent_paramaters = within_paramaters(-25, -0.1)
-                if ascent_paramaters == True:
+                descent_paramaters = within_paramaters(-25, -0.1)
+                ascent_paramaters = within_paramaters(0.1, 15)
+
+                if descent_paramaters == True:
                     _, fired_2 = neuron_2.step(abs(delta_y))
                     _, fired_3 = neuron_3.step(abs(delta_y))
                     neuron_1.leak()
@@ -106,8 +114,7 @@ while True:
                             neuron_5.V = neuron_5.reset
                             neuron_2.V = neuron_2.reset                        
 
-                descent_paramaters = within_paramaters(0.1, 15)
-                if descent_paramaters == True:
+                elif ascent_paramaters == True:
                     _, fired_1 = neuron_1.step(abs(delta_y))
                     _, fired_4 = neuron_4.step(abs(delta_y))
                     neuron_2.leak()
@@ -135,7 +142,8 @@ while True:
                     neuron_3.leak()
                     neuron_4.leak()
                     neuron_5.leak()
-        
+
+    print(neuron_2.V)
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
 
