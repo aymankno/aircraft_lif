@@ -27,3 +27,8 @@ Future changes: Set touch/go neuron's paramaters. Looked at footage today, but f
 Created a within_paramaters function to improve readability. Function passes minimum and maximum delta_y values to filter blobs by location and delta to determine which blobs should trigger a step() for their respective neuron. Function currently fit to video2, but allows for easy changing between videos. Investigated other videos to determine accuracy of  LIF, resulted in a fairly high accuracy yet an issue with camera focus. Video would blur in certain videos at random times, trigger neuron_5, and thus prevent actual movements from triggering; like counting a landing during a takeoff, etc. In addition, landings would be too distant from the camera in certain videos for OpenCV to detect a plane as a moving object (a blob). This can likely be fixed by camera placement during field testing rather than code.
 
 Future changes: implement a fix for blobs on screen: debris on camera, focus, etc. Go to local airfields to self-film footage to determine optimal location for deployment and to evaluate what changes are needed to the system.
+
+### Added smoothing to inputs, further organied code - 10/2/2026
+Added a smoothing feature to inputs to combat issue with blur and noise in footage. Seems to be effective in initial testing, but definitely could use fixing later and with new footage. Still consistently recieving a good score on the test footage. Minor changes: improved readability of code, changed paramaters of landing neuron.
+
+Future changes: film footage at a GA field to fit paramaters to. Find new ways to combat blurring issue, possibly with more neurons.
