@@ -127,15 +127,15 @@ while True:
                                 neuron_5.V = neuron_5.reset
                                 neuron_1.V = neuron_1.reset
 
-                ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
-                elif fired_4 == True:
-                    if neuron_3.V > 0.1:
-                        if neuron_5.V < neuron_5.thresh:
-                            touch_gos += 1
-                            print("Touch and go")
-                            neuron_5.V = neuron_5.reset
-                            neuron_3.V = neuron_3.reset
-                            neuron_4.V = neuron_4.reset
+                    ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
+                    elif fired_4 == True:
+                        if neuron_3.V > 0.1:
+                            if neuron_5.V < neuron_5.thresh:
+                                touch_gos += 1
+                                print("Touch and go")
+                                neuron_5.V = neuron_5.reset
+                                neuron_3.V = neuron_3.reset
+                                neuron_4.V = neuron_4.reset
             else:
                 neuron_1.leak()
                 neuron_2.leak()
