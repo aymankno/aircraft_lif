@@ -36,7 +36,7 @@ def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
 
-# within_paramaters is mainly due to the lack of online static footage; footage found had graphic on side that would interfere with neuron.
+# designed for certain video used for testing with graphic on right side
 def within_paramaters(min, max):
     is_within = False
     if min <= delta_y <= max:
