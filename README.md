@@ -32,3 +32,10 @@ Future changes: implement a fix for blobs on screen: debris on camera, focus, et
 Added a smoothing feature to inputs to combat issue with blur and noise in footage. Seems to be effective in initial testing, but definitely could use fixing later and with new footage. Still consistently recieving a good score on the test footage. Minor changes: improved readability of code, changed paramaters of landing neuron.
 
 Future changes: film footage at a GA field to fit paramaters to. Find new ways to combat blurring issue, possibly with more neurons.
+
+### Began work with SuperNeuroMAT - 10/4/2026
+SuperNeuroMAT is a Python package widely used by the neuromorphic community to get weights for neuromorphic models, like SNNs. Although aircraft_counter.py is comprised of just five neurons, SuperNeuroMAT makes it possible to replace the singular neurons used with layers of neurons for superior accuracy. The primary purpose of this project, initially, was to further my understanding in neuromorphic computation, LIFs, and SNNs, but now this project is allowing me to learn how to use common neuromorphic libraries in the neuromorphic community like SuperNeuroMAT. SuperNeuroMAT will allow for the testing of paramaters and training of neurons. An initial commit can be found at superNM.py.
+
+Changes to aircraft_counter.py: Removed several lines of unnecessary code.
+
+Future changes: Film footage at GA fields to train SuperNeuroMAT layers of neurons on, further understanding of SuperNeuroMAT. Fix bugs in go_around block of code.
