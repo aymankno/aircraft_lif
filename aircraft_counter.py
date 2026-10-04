@@ -36,6 +36,7 @@ def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
 
+# within_paramaters is mainly due to the lack of online static footage; footage found had graphic on side that would interfere with neuron.
 def within_paramaters(min, max):
     is_within = False
     if min <= delta_y <= max:
@@ -71,7 +72,6 @@ video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
 cap = cv2.VideoCapture(video2)
 
 prev_frame = None
-y_old = None
 backSub = cv2.createBackgroundSubtractorMOG2()
 
 while True:
