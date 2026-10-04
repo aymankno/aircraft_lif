@@ -9,7 +9,7 @@ class LIF_neuron:
         self.thresh = thresh
         self.reset = reset
         self.dt = dt
-        self.alpha = 0.6
+        self.alpha = 0.8
 
         self.old_input = 0
 
@@ -49,7 +49,7 @@ def within_paramaters(min, max):
 neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 
 # neuron_2: Landing
-neuron_2 = LIF_neuron(tau=2.5, thresh=0.9, reset=0, dt=1.0/100.0)
+neuron_2 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
 
 # neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT
 neuron_3 = LIF_neuron(tau=5.0, thresh=0.1, reset=0, dt=1.0/100.0)
@@ -90,58 +90,58 @@ while True:
             centroid = (stats[best_i, cv2.CC_STAT_TOP] + (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])) / 2
             if y_old is None:
                 y_old = centroid
-            else:
-                top_left = (stats[best_i, cv2.CC_STAT_LEFT], stats[best_i, cv2.CC_STAT_TOP])
-                right = stats[best_i, cv2.CC_STAT_LEFT] + stats[best_i, cv2.CC_STAT_WIDTH]
-                bottom_right = (right, stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])
-                delta_y = get_slope(y_old, centroid)
-                y_old = centroid
-                cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
 
-                descent_paramaters = within_paramaters(-25, -0.1)
-                ascent_paramaters = within_paramaters(0.1, 15)
+            top_left = (stats[best_i, cv2.CC_STAT_LEFT], stats[best_i, cv2.CC_STAT_TOP])
+            right = stats[best_i, cv2.CC_STAT_LEFT] + stats[best_i, cv2.CC_STAT_WIDTH]
+            bottom_right = (right, stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])
+            delta_y = get_slope(y_old, centroid)
+            y_old = centroid
+            cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
 
-                if descent_paramaters == True:
-                    _, fired_2 = neuron_2.step(abs(delta_y))
-                    _, fired_3 = neuron_3.step(abs(delta_y))
-                    neuron_1.leak()
-                    neuron_4.leak()
-                    neuron_5.leak()
-                    if fired_2 == True:
+            descent_paramaters = within_paramaters(-25, -0.1)
+            ascent_paramaters = within_paramaters(0.1, 15)
+
+            if descent_paramaters == True:
+                _, fired_2 = neuron_2.step(abs(delta_y))
+                _, fired_3 = neuron_3.step(abs(delta_y))
+                neuron_1.leak()
+                neuron_4.leak()
+                neuron_5.leak()
+                if fired_2 == True:
+                    if neuron_5.V < neuron_5.thresh:
+                        landings += 1
+                        print("Landing") 
+                        neuron_5.V = neuron_5.reset
+                        neuron_2.V = neuron_2.reset                        
+
+            elif ascent_paramaters == True:
+                _, fired_1 = neuron_1.step(abs(delta_y))
+                _, fired_4 = neuron_4.step(abs(delta_y))
+                neuron_2.leak()
+                neuron_3.leak()
+                neuron_5.leak()
+                if fired_1 == True:
+                    if neuron_5.V < neuron_5.thresh:
+                                takeoffs += 1
+                                print("Takeoff")
+                                neuron_5.V = neuron_5.reset
+                                neuron_1.V = neuron_1.reset
+
+                ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
+                elif fired_4 == True:
+                    if neuron_3.V > 0.1:
                         if neuron_5.V < neuron_5.thresh:
-                            landings += 1
-                            print("Landing") 
+                            touch_gos += 1
+                            print("Touch and go")
                             neuron_5.V = neuron_5.reset
-                            neuron_2.V = neuron_2.reset                        
-
-                elif ascent_paramaters == True:
-                    _, fired_1 = neuron_1.step(abs(delta_y))
-                    _, fired_4 = neuron_4.step(abs(delta_y))
-                    neuron_2.leak()
-                    neuron_3.leak()
-                    neuron_5.leak()
-                    if fired_1 == True:
-                        if neuron_5.V < neuron_5.thresh:
-                                    takeoffs += 1
-                                    print("Takeoff")
-                                    neuron_5.V = neuron_5.reset
-                                    neuron_1.V = neuron_1.reset
-
-                    ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
-                    if fired_4 == True:
-                            if neuron_3.V > 0.1:
-                                if neuron_5.V < neuron_5.thresh:
-                                    touch_gos += 1
-                                    print("Touch and go")
-                                    neuron_5.V = neuron_5.reset
-                                    neuron_3.V = neuron_3.reset
-                                    neuron_4.V = neuron_4.reset
-                else:
-                    neuron_1.leak()
-                    neuron_2.leak()
-                    neuron_3.leak()
-                    neuron_4.leak()
-                    neuron_5.leak()
+                            neuron_3.V = neuron_3.reset
+                            neuron_4.V = neuron_4.reset
+            else:
+                neuron_1.leak()
+                neuron_2.leak()
+                neuron_3.leak()
+                neuron_4.leak()
+                neuron_5.leak()
 
     print(neuron_2.V)
     cv2.imshow("Aircraft Counter LIF", frame)
