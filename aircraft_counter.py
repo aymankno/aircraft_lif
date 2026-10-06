@@ -10,9 +10,7 @@ class LIF_neuron:
         self.reset = reset
         self.dt = dt
         self.alpha = 0.8
-
         self.old_input = 0
-
 
     def step(self, I_input):
         did_fire = False
@@ -48,7 +46,7 @@ def within_paramaters(min, max):
 # neuron_1: Takeoff
 neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 
-# neuron_2: Landing
+# neuron_2: Descent neuron
 neuron_2 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
 
 # neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT
@@ -109,8 +107,7 @@ while True:
                 neuron_5.leak()
                 if fired_2 == True:
                     if neuron_5.V < neuron_5.thresh:
-                        landings += 1
-                        print("Landing") 
+                        print("Descent detected - nothing counted") 
                         neuron_5.V = neuron_5.reset
                         neuron_2.V = neuron_2.reset                        
 
@@ -143,7 +140,6 @@ while True:
                 neuron_4.leak()
                 neuron_5.leak()
 
-    print(neuron_2.V)
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
 
