@@ -20,9 +20,9 @@ touch_go_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=1
 
 outputs = landing_layer + takeoff_layer + touch_go_layer
 
-for pre in inputs:                                  # Makes 1500 synapses to connect everything together
-    for post in outputs:                            # Weight is anywhere in range with avg of .25, 1/4 of 1.0 (thresh)
-        snn.create_synapse(pre, post, weight=rng.uniform(0.1, 0.4), stdp_enabled=True)
+for pre in inputs:                                       # Makes 1500 synapses to connect everything together
+    for post in outputs:             # 3 inputs / frame, leak is 0.1 / frame. 0.1 / 3 = 0.0333; range has both min and max < 0.03333
+        snn.create_synapse(pre, post, weight=rng.uniform(0.01, 0.02), stdp_enabled=True)
 
 
 start_takeoff = 1500 # starting frame; not real, for testing
