@@ -45,12 +45,13 @@ Renamed superNM.py to ac_superneuromat.py for readability. "ac", short for aircr
 
 Important changes to aircraft_counter.py (fundamental): While working through the conversion from aircraft_counter.py to ac_superneuromat.py, it became evident that in the event of a go-around, under current architecture, a go-around would never been counted and instead be counted as a landing due to the fact that neurons act independently of eachother. Resulted in all neurons being repurposed in some way, like neuron_1 and 2 being changed to ascent/descent, and neuron_3-4 becoming time neurons. Furthermore, while doing independent reading on SNNs, I came to the realization that aircraft_counter.py is not a manually coded SNN and is instead a custom system of LIFs with a heavy dependency on if statements with Python. This means that aircraft_counter.py will be used as reference in the future and likely will not be used for testing of paramaters both due to the lack of synapses and of neurons (singular neurons rather than systems of neurons). Furthermore, this repository, aircraft_counter, will now have a heavy focus on ac_superneuromat.py for this reason.
 
-## Citations:
+## Acknowledgements:
 
+```bibtex
 @inproceedings{date2023superneuro,
-  title={SuperNeuro: A fast and scalable simulator for neuromorphic computing},
-  author={Date, Prasanna and Gunaratne, Chathika and R. Kulkarni, Shruti and Patton, Robert and Coletti, Mark and Potok, Thomas},
-  booktitle={Proceedings of the 2023 International Conference on Neuromorphic Systems},
-  pages={1--4},
-  year={2023}
+  title     = {SuperNeuro: A fast and scalable simulator for neuromorphic computing},
+  author    = {Date, Prasanna and Gunaratne, Chathika and Kulkarni, Shruti R. and Patton, Robert and Coletti, Mark and Potok, Thomas},
+  booktitle = {Proceedings of the 2023 International Conference on Neuromorphic Systems},
+  pages     = {1--4},
+  year      = {2023}
 }
