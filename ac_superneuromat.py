@@ -25,15 +25,17 @@ for pre in inputs:                                       # Makes 1500 synapses t
         snn.create_synapse(pre, post, weight=rng.uniform(0.01, 0.02), stdp_enabled=True)
 
 ### TRAINING PIPELINE BELOW
+print()
+print("TRAINING:")
 
-start_takeoff = 1500 # starting frame; not real, for testing
-end_takeoff = 2000   # ending frame; not real, for testing
+train_start_takeoff = 1500 # starting frame; not real, for testing
+train_end_takeoff = 2000   # ending frame; not real, for testing
 
-start_landing = 4500
-end_landing = 5000
+train_start_landing = 4500
+train_end_landing = 5000
 
-train_log = [(start_takeoff, end_takeoff, "takeoff"),
-       (start_landing, end_landing, "landing")]
+train_log = [(train_start_takeoff, train_end_takeoff, "takeoff"),
+       (train_start_landing, train_end_landing, "landing")]
         # and will add touch/go when footage filmed
 
 defined_outputs = {"takeoff": takeoff_layer,
@@ -107,3 +109,34 @@ print("Descent-takeoff:", descent_takeoff_after, "DIFFERENCE", descent_takeoff_a
 print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_after - ascent_landing_before)
 print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_after - ascent_takeoff_before)
 print()
+
+### TESTING BELOW
+print("TESTING:")
+print()
+snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False)
+
+test_start_takeoff = 8500
+test_end_takeoff = 9062
+
+test_start_landing = 10682
+test_end_landing = 11176
+
+test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
+            (test_start_landing, test_end_landing, "landing")]
+
+for start, end, label in test_log:
+    for frame in range(start, end):
+        for n in defined_inputs[label]:
+            snn.add_spike(frame, n, 2.0)
+
+snn.simulate(time_steps=15500)
+
+takeoff_takeoff_count = snn.ispikes[test_start_takeoff:test_end_takeoff, takeoff_ids].sum()
+takeoff_landing_count = snn.ispikes[test_start_takeoff:test_end_takeoff, landing_ids].sum()
+landing_landing_count = snn.ispikes[test_start_landing:test_end_landing, landing_ids].sum()
+landing_takeoff_count = snn.ispikes[test_start_landing:test_end_landing, takeoff_ids].sum()
+
+print("Takeoff-takeoff count:", takeoff_takeoff_count)
+print("Takeoff-landing count:", takeoff_landing_count)
+print("Landing-landing count:", landing_landing_count)
+print("Landing-takeoff count:", landing_takeoff_count)
