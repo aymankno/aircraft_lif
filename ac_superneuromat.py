@@ -3,7 +3,6 @@ from superneuromat import SNN
 import cv2
 import numpy as np
 
-np.random.seed(19)
 rng = np.random.default_rng(0)
 
 snn = SNN()
@@ -47,7 +46,7 @@ for start, end, label in log:                             # Teacher Spike:
 
 Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
 Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses
-snn.stdp_setup(Apos, Aneg, True, True)              # Sets up stdp based on values above
+snn.stdp_setup(Apos, Aneg, True, False)              # Sets up stdp based on values above
 
 defined_inputs = {"takeoff": ascent_layer,
                   "landing": descent_layer}
@@ -91,19 +90,19 @@ descent_takeoff_after = W[np.ix_(descent_ids, takeoff_ids)].mean()
 ascent_landing_after = W[np.ix_(ascent_ids, landing_ids)].mean()
 ascent_takeoff_after = W[np.ix_(ascent_ids, takeoff_ids)].mean()
 
+print()
 print("BEFORE:")
 print("Descent-landing:", descent_landing_before)
 print("Descent-takeoff:", descent_takeoff_before)
 print("Ascent-landing:", ascent_landing_before)
 print("Ascent-takeoff:", ascent_takeoff_before)
 
-print(" " \
-      " " \
-      " ")
+print()
 
 print("AFTER:")
-print("Descent-landing:", descent_landing_after, "DIFFERENCE", descent_landing_before - descent_landing_after)
-print("Descent-takeoff:", descent_takeoff_after, "DIFFERENCE", descent_takeoff_before - descent_takeoff_after)
-print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_before - ascent_takeoff_after)
-print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_before - ascent_takeoff_after)
+print("Descent-landing:", descent_landing_after, "DIFFERENCE", descent_landing_after - descent_landing_before)
+print("Descent-takeoff:", descent_takeoff_after, "DIFFERENCE", descent_takeoff_after - descent_takeoff_before)
+print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_after - ascent_landing_before)
+print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_after - ascent_takeoff_before)
+print()
 
