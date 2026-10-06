@@ -43,13 +43,16 @@ def within_paramaters(min, max):
                 is_within = True
     return is_within
 
-# neuron_1: Takeoff
+# neuron_1: Ascent neuron
 neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 
 # neuron_2: Descent neuron
 neuron_2 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
 
-# neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT
+# neuron_2b: Landing neuron
+neuron_2b = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
+
+# neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT - DEPRICATED
 neuron_3 = LIF_neuron(tau=5.0, thresh=0.1, reset=0, dt=1.0/100.0)
 
 # neuron_4: touch/go LAYER 2 - ascent. PARAMATERS WILL NEED ADJUSTMENT
@@ -119,26 +122,35 @@ while True:
                 neuron_5.leak()
                 if fired_1 == True:
                     if neuron_5.V < neuron_5.thresh:
-                                takeoffs += 1
-                                print("Takeoff")
-                                neuron_5.V = neuron_5.reset
-                                neuron_1.V = neuron_1.reset
+                        takeoffs += 1
+                        print("Takeoff")
+                        neuron_5.V = neuron_5.reset
+                        neuron_1.V = neuron_1.reset
 
-                    ### go-around is experimental mechanism; concept/syntax looks good, paramaters untested
-                    elif fired_4 == True:
-                        if neuron_3.V > 0.1:
-                            if neuron_5.V < neuron_5.thresh:
-                                touch_gos += 1
-                                print("Touch and go")
-                                neuron_5.V = neuron_5.reset
-                                neuron_3.V = neuron_3.reset
-                                neuron_4.V = neuron_4.reset
             else:
                 neuron_1.leak()
                 neuron_2.leak()
                 neuron_3.leak()
                 neuron_4.leak()
                 neuron_5.leak()
+
+    # descent block - landings & touch/go
+    if fired_2 == True:
+        _, fired_2b = neuron_2b.step(1.0)
+        if neuron_5.V < neuron_5.thresh:
+            if fired_2b == True:
+                print("Landing confirmed")
+                landings += 1
+                neuron_5.V = neuron_5.reset
+                neuron_2b.V = neuron_2b.reset
+                fired_2 = False
+            elif fired_4 == True:
+                print("Touch/go confirmed")
+                touch_gos += 1
+                neuron_5.V = neuron_5.reset
+                neuron_4.V = neuron_4.reset
+                fired_2 = False
+
 
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
