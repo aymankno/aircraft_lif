@@ -43,22 +43,19 @@ def within_paramaters(min, max):
                 is_within = True
     return is_within
 
-# neuron_1: Ascent neuron
+# neuron_1: Ascent neuron - INPUT NEURON - positive delta_y of centroid
 neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 
-# neuron_2: Descent neuron
+# neuron_2: Descent neuron - INPUT NEURON - negative delta_y of centroid
 neuron_2 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
 
-# neuron_2b: Landing neuron
-neuron_2b = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
+# neuron_3: Landing neuron (NEW USE) - TIME NEURON - from descent trigger --> landing trigger (goal)
+neuron_3 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
 
-# neuron_3: touch/go LAYER 1 - descent. PARAMATERS WILL NEED ADJUSTMENT - DEPRICATED
-neuron_3 = LIF_neuron(tau=5.0, thresh=0.1, reset=0, dt=1.0/100.0)
-
-# neuron_4: touch/go LAYER 2 - ascent. PARAMATERS WILL NEED ADJUSTMENT
+# neuron_4: Touch/go neuron for ascent - TIME NEURON - from descent trigger --> touch/go trigger (goal)
 neuron_4 = LIF_neuron(tau=1.0, thresh=20.0, reset=0, dt=1.0/100.0)
 
-# neuron_5: time between events. reset = voltage after event
+# neuron_5: time between events - TIME NEURON - from event trigger --> next event allowed to trigger
 neuron_5 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0)
 
 
@@ -104,7 +101,6 @@ while True:
 
             if descent_paramaters == True:
                 _, fired_2 = neuron_2.step(abs(delta_y))
-                _, fired_3 = neuron_3.step(abs(delta_y))
                 neuron_1.leak()
                 neuron_4.leak()
                 neuron_5.leak()
@@ -118,7 +114,6 @@ while True:
                 _, fired_1 = neuron_1.step(abs(delta_y))
                 _, fired_4 = neuron_4.step(abs(delta_y))
                 neuron_2.leak()
-                neuron_3.leak()
                 neuron_5.leak()
                 if fired_1 == True:
                     if neuron_5.V < neuron_5.thresh:
@@ -130,25 +125,25 @@ while True:
             else:
                 neuron_1.leak()
                 neuron_2.leak()
-                neuron_3.leak()
                 neuron_4.leak()
                 neuron_5.leak()
 
     # descent block - landings & touch/go
     if fired_2 == True:
-        _, fired_2b = neuron_2b.step(1.0)
+        _, fired_3 = neuron_3.step(1.0)
         if neuron_5.V < neuron_5.thresh:
-            if fired_2b == True:
+            if fired_3 == True:
                 print("Landing confirmed")
                 landings += 1
                 neuron_5.V = neuron_5.reset
-                neuron_2b.V = neuron_2b.reset
+                neuron_3.V = neuron_3.reset
                 fired_2 = False
             elif fired_4 == True:
                 print("Touch/go confirmed")
                 touch_gos += 1
                 neuron_5.V = neuron_5.reset
                 neuron_4.V = neuron_4.reset
+                neuron_3.V = neuron_2.reset
                 fired_2 = False
 
 
