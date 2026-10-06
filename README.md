@@ -1,7 +1,7 @@
 ## aircraft_counter
 Ayman Aghel - 9/14/2026
 
-Manually coded spiking-neural network (SNN) to count aircraft and identify what stage of flight they are in: takeoff, landing, or touch and go. Designed for general aviation (GA) airports without towers to recieve grants from the Federal Aviation Administration (FAA) to improve safety. Coded exclusively with OpenCV and NumPy libraries in Python.
+Custom LIF network of five neurons to count aircraft and classify and sort by stage of flight: takeoff, landing, and touch & go. Initially coded in Python manually with OpenCV and NumPy, now with SuperNeuroMAT implementation.
 
 ### Initial commit - 9/14/2026:
 Currently with a working, accurate landing neuron (neuron_1a), but takeoff neuron (neuron_1b) is faulty, so is touch and go (neuron_2). In next commit, will fix these neurons and begin working on a constantly working leak mechanic. Currently, neurons only leak when calling .step(), will include a working leak mechanic at end to accurately and continously decrease voltage. Current leak mechanic does not work.
@@ -24,7 +24,7 @@ Major improvements: Added neuron_5: a time neuron from the LIF_neuron class dedi
 Future changes: Set touch/go neuron's paramaters. Looked at footage today, but found no usable footage of go-arounds, especially at GA airports. Will still continue looking for footage of go-arounds, takeoffs, and landings to test syntax + concept. Also: polish code and improve syntax, readability (especially in the repeated if statements before neurons are fired) of aircraft_counter.py. Fix grammar, organize thoughts in this README.
 
 ### Improved readability of code, explored other videos - 9/30/2026
-Created a within_paramaters function to improve readability. Function passes minimum and maximum delta_y values to filter blobs by location and delta to determine which blobs should trigger a step() for their respective neuron. Function currently fit to video2, but allows for easy changing between videos. Investigated other videos to determine accuracy of SNN, resulted in a fairly high accuracy yet an issue with camera focus. Video would blur in certain videos at random times, trigger neuron_5, and thus prevent actual movements from triggering; like counting a landing during a takeoff, etc. In addition, landings would be too distant from the camera in certain videos for OpenCV to detect a plane as a moving object (a blob). This can likely be fixed by camera placement during field testing rather than code.
+Created a within_paramaters function to improve readability. Function passes minimum and maximum delta_y values to filter blobs by location and delta to determine which blobs should trigger a step() for their respective neuron. Function currently fit to video2, but allows for easy changing between videos. Investigated other videos to determine accuracy of custom LIF network, resulted in a fairly high accuracy yet an issue with camera focus. Video would blur in certain videos at random times, trigger neuron_5, and thus prevent actual movements from triggering; like counting a landing during a takeoff, etc. In addition, landings would be too distant from the camera in certain videos for OpenCV to detect a plane as a moving object (a blob). This can likely be fixed by camera placement during field testing rather than code.
 
 Future changes: implement a fix for blobs on screen: debris on camera, focus, etc. Go to local airfields to self-film footage to determine optimal location for deployment and to evaluate what changes are needed to the system.
 
