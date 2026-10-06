@@ -136,14 +136,11 @@ while True:
                 print("Landing confirmed")
                 landings += 1
                 neuron_5.V = neuron_5.reset
-                neuron_3.V = neuron_3.reset
                 fired_2 = False
             elif neuron_4.V < neuron_4.thresh:
                 print("Touch/go confirmed")
                 touch_gos += 1
                 neuron_5.V = neuron_5.reset
-                neuron_4.V = neuron_4.reset
-                neuron_3.V = neuron_2.reset
                 fired_2 = False
 
 
