@@ -24,6 +24,7 @@ for pre in inputs:                                       # Makes 1500 synapses t
     for post in outputs:             # 3 inputs / frame, leak is 0.1 / frame. 0.1 / 3 = 0.0333; range has both min and max < 0.03333
         snn.create_synapse(pre, post, weight=rng.uniform(0.01, 0.02), stdp_enabled=True)
 
+### TRAINING PIPELINE BELOW
 
 start_takeoff = 1500 # starting frame; not real, for testing
 end_takeoff = 2000   # ending frame; not real, for testing
@@ -31,7 +32,7 @@ end_takeoff = 2000   # ending frame; not real, for testing
 start_landing = 4500
 end_landing = 5000
 
-log = [(start_takeoff, end_takeoff, "takeoff"),
+train_log = [(start_takeoff, end_takeoff, "takeoff"),
        (start_landing, end_landing, "landing")]
         # and will add touch/go when footage filmed
 
@@ -39,7 +40,7 @@ defined_outputs = {"takeoff": takeoff_layer,
                    "landing": landing_layer}
         # will add touch/go when filmed
 
-for start, end, label in log:                             # Teacher Spike:
+for start, end, label in train_log:                      # Teacher Spike:
     for frame in range(start, end, 10):   # Points to an event, pushes it to desired layer.
         for n in defined_outputs[label]:
             snn.add_spike((frame + 1), n, 10)
@@ -51,7 +52,7 @@ snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)         
 defined_inputs = {"takeoff": ascent_layer,
                   "landing": descent_layer}
 
-for start, end, label in log:                             # Input Spike:
+for start, end, label in train_log:                       # Input Spike:
     for frame in range(start, end):   # Fake camera for when testing inputs with dummy values.
         for n in defined_inputs[label]:
             snn.add_spike((frame), n, 2.0)
@@ -99,10 +100,10 @@ print("Ascent-takeoff:", ascent_takeoff_before)
 
 print()
 
+
 print("AFTER:")
 print("Descent-landing:", descent_landing_after, "DIFFERENCE", descent_landing_after - descent_landing_before)
 print("Descent-takeoff:", descent_takeoff_after, "DIFFERENCE", descent_takeoff_after - descent_takeoff_before)
 print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_after - ascent_landing_before)
 print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_after - ascent_takeoff_before)
 print()
-
