@@ -64,6 +64,7 @@ takeoffs = 0
 landings = 0
 touch_gos = 0
 y_old = None
+fired_2 = False
 
 video1 = "video.mp4"
 video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
@@ -108,6 +109,7 @@ while True:
                 if fired_2 == True:
                     print("Descent detected - nothing counted") 
                     neuron_5.V = neuron_5.reset
+                    neuron_3.V = neuron_3.reset
                     neuron_2.V = neuron_2.reset                        
 
             elif ascent_paramaters == True:
