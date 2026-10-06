@@ -46,7 +46,7 @@ for start, end, label in log:                             # Teacher Spike:
 
 Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
 Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses
-snn.stdp_setup(Apos, Aneg, True, False)              # Sets up stdp based on values above
+snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)              # Sets up stdp based on values above
 
 defined_inputs = {"takeoff": ascent_layer,
                   "landing": descent_layer}
@@ -74,21 +74,21 @@ for neuron in takeoff_layer:
 
 W = snn.weight_mat()
 
-descent_landing_before = W[np.ix_(descent_ids, landing_ids)].mean()
-descent_takeoff_before = W[np.ix_(descent_ids, takeoff_ids)].mean()
+descent_landing_before = W[np.ix_(descent_ids[:3], landing_ids)].mean()
+descent_takeoff_before = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
 
-ascent_landing_before = W[np.ix_(ascent_ids, landing_ids)].mean()
-ascent_takeoff_before = W[np.ix_(ascent_ids, takeoff_ids)].mean()
+ascent_landing_before = W[np.ix_(ascent_ids[:3], landing_ids)].mean()
+ascent_takeoff_before = W[np.ix_(ascent_ids[:3], takeoff_ids)].mean()
 
 snn.simulate(time_steps=5500)
 
 W = snn.weight_mat()
 
-descent_landing_after = W[np.ix_(descent_ids, landing_ids)].mean()
-descent_takeoff_after = W[np.ix_(descent_ids, takeoff_ids)].mean()
+descent_landing_after = W[np.ix_(descent_ids[:3], landing_ids)].mean()
+descent_takeoff_after = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
 
-ascent_landing_after = W[np.ix_(ascent_ids, landing_ids)].mean()
-ascent_takeoff_after = W[np.ix_(ascent_ids, takeoff_ids)].mean()
+ascent_landing_after = W[np.ix_(ascent_ids[:3], landing_ids)].mean()
+ascent_takeoff_after = W[np.ix_(ascent_ids[:3], takeoff_ids)].mean()
 
 print()
 print("BEFORE:")
