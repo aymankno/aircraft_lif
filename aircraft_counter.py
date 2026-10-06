@@ -40,7 +40,8 @@ def within_paramaters(min, max):
     if min <= delta_y <= max:
         if right <= 1250:
             if (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT]) <= 750:
-                is_within = True
+                if neuron_5.V < neuron_5.thresh:
+                    is_within = True
     return is_within
 
 # neuron_1: Ascent neuron - INPUT NEURON - positive delta_y of centroid
@@ -53,7 +54,7 @@ neuron_2 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
 neuron_3 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0) # PARAMETERS WRONG; FOR REFERENCE
 
 # neuron_4: Touch/go neuron for ascent - TIME NEURON - from descent trigger --> touch/go trigger (goal)
-neuron_4 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0) # PARAMETERS WRONG; FOR REFERENCE
+neuron_4 = LIF_neuron(tau=3.0, thresh=0.05, reset=1.0, dt=1.0/100.0) # PARAMETERS WRONG; FOR REFERENCE
 
 # neuron_5: time between events - TIME NEURON - from event trigger --> next event allowed to trigger
 neuron_5 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0)
@@ -105,10 +106,9 @@ while True:
                 neuron_4.leak()
                 neuron_5.leak()
                 if fired_2 == True:
-                    if neuron_5.V < neuron_5.thresh:
-                        print("Descent detected - nothing counted") 
-                        neuron_5.V = neuron_5.reset
-                        neuron_2.V = neuron_2.reset                        
+                    print("Descent detected - nothing counted") 
+                    neuron_5.V = neuron_5.reset
+                    neuron_2.V = neuron_2.reset                        
 
             elif ascent_paramaters == True:
                 _, fired_1 = neuron_1.step(abs(delta_y))
@@ -116,11 +116,10 @@ while True:
                 neuron_2.leak()
                 neuron_5.leak()
                 if fired_1 == True:
-                    if neuron_5.V < neuron_5.thresh:
-                        takeoffs += 1
-                        print("Takeoff")
-                        neuron_5.V = neuron_5.reset
-                        neuron_1.V = neuron_1.reset
+                    takeoffs += 1
+                    print("Takeoff")
+                    neuron_5.V = neuron_5.reset
+                    neuron_1.V = neuron_1.reset
 
             else:
                 neuron_1.leak() # input
@@ -142,7 +141,6 @@ while True:
                 touch_gos += 1
                 neuron_5.V = neuron_5.reset
                 fired_2 = False
-
 
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
