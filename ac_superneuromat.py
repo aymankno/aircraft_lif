@@ -56,3 +56,54 @@ for start, end, label in log:                             # Input Spike:
     for frame in range(start, end):   # Fake camera for when testing inputs with dummy values.
         for n in defined_inputs[label]:
             snn.add_spike((frame), n, 2.0)
+
+descent_ids = []
+for neuron in descent_layer:
+    descent_ids.append(neuron.idx)
+
+ascent_ids = []
+for neuron in ascent_layer:
+    ascent_ids.append(neuron.idx)
+
+landing_ids = []
+for neuron in landing_layer:
+    landing_ids.append(neuron.idx)
+
+takeoff_ids = []
+for neuron in takeoff_layer:
+    takeoff_ids.append(neuron.idx)
+
+W = snn.weight_mat()
+
+descent_landing_before = W[np.ix_(descent_ids, landing_ids)].mean()
+descent_takeoff_before = W[np.ix_(descent_ids, takeoff_ids)].mean()
+
+ascent_landing_before = W[np.ix_(ascent_ids, landing_ids)].mean()
+ascent_takeoff_before = W[np.ix_(ascent_ids, takeoff_ids)].mean()
+
+snn.simulate(time_steps=5500)
+
+W = snn.weight_mat()
+
+descent_landing_after = W[np.ix_(descent_ids, landing_ids)].mean()
+descent_takeoff_after = W[np.ix_(descent_ids, takeoff_ids)].mean()
+
+ascent_landing_after = W[np.ix_(ascent_ids, landing_ids)].mean()
+ascent_takeoff_after = W[np.ix_(ascent_ids, takeoff_ids)].mean()
+
+print("BEFORE:")
+print("Descent-landing:", descent_landing_before)
+print("Descent-takeoff:", descent_takeoff_before)
+print("Ascent-landing:", ascent_landing_before)
+print("Ascent-takeoff:", ascent_takeoff_before)
+
+print(" " \
+      " " \
+      " ")
+
+print("AFTER:")
+print("Descent-landing:", descent_landing_after, "DIFFERENCE", descent_landing_before - descent_landing_after)
+print("Descent-takeoff:", descent_takeoff_after, "DIFFERENCE", descent_takeoff_before - descent_takeoff_after)
+print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_before - ascent_takeoff_after)
+print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_before - ascent_takeoff_after)
+
