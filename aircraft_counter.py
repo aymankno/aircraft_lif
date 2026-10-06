@@ -50,10 +50,10 @@ neuron_1 = LIF_neuron(tau=0.1, thresh=1.5, reset=0, dt=1.0/100.0)
 neuron_2 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
 
 # neuron_3: Landing neuron (NEW USE) - TIME NEURON - from descent trigger --> landing trigger (goal)
-neuron_3 = LIF_neuron(tau=2.5, thresh=1.0, reset=0, dt=1.0/100.0)
+neuron_3 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0) # PARAMETERS WRONG; FOR REFERENCE
 
 # neuron_4: Touch/go neuron for ascent - TIME NEURON - from descent trigger --> touch/go trigger (goal)
-neuron_4 = LIF_neuron(tau=1.0, thresh=20.0, reset=0, dt=1.0/100.0)
+neuron_4 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0) # PARAMETERS WRONG; FOR REFERENCE
 
 # neuron_5: time between events - TIME NEURON - from event trigger --> next event allowed to trigger
 neuron_5 = LIF_neuron(tau=5.0, thresh=0.05, reset=1.0, dt=1.0/100.0)
@@ -123,22 +123,22 @@ while True:
                         neuron_1.V = neuron_1.reset
 
             else:
-                neuron_1.leak()
-                neuron_2.leak()
-                neuron_4.leak()
-                neuron_5.leak()
+                neuron_1.leak() # input
+                neuron_2.leak() # input
+                neuron_3.leak() # time
+                neuron_4.leak() # time
+                neuron_5.leak() # time
 
     # descent block - landings & touch/go
     if fired_2 == True:
-        _, fired_3 = neuron_3.step(1.0)
         if neuron_5.V < neuron_5.thresh:
-            if fired_3 == True:
+            if neuron_3.V < neuron_3.thresh:
                 print("Landing confirmed")
                 landings += 1
                 neuron_5.V = neuron_5.reset
                 neuron_3.V = neuron_3.reset
                 fired_2 = False
-            elif fired_4 == True:
+            elif neuron_4.V < neuron_4.thresh:
                 print("Touch/go confirmed")
                 touch_gos += 1
                 neuron_5.V = neuron_5.reset
