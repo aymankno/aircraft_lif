@@ -3,6 +3,9 @@ from superneuromat import SNN
 import cv2
 import numpy as np
 
+np.random.seed(19)
+rng = np.random.default_rng(0)
+
 snn = SNN()
 
 # 25 neurons each - eyes of SNN (input layers)
@@ -18,8 +21,8 @@ touch_go_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=1
 
 outputs = landing_layer + takeoff_layer + touch_go_layer
 
-start_takeoff = 1500
-end_takeoff = 2000
+start_takeoff = 1500 # starting frame; not real, for testing
+end_takeoff = 2000   # ending frame; not real, for testing
 
 start_landing = 4500
 end_landing = 5000
@@ -30,12 +33,17 @@ log = [(start_takeoff, end_takeoff, "takeoff"),
 
 defined = {"takeoff": takeoff_layer,
            "landing": landing_layer}
+        # will add touch/go when filmed
 
-for start, end, label in log:
-    for frame in range(start, end, 10):
+for start, end, label in log:                             # Teacher Spike:
+    for frame in range(start, end, 10):   # Points to an event, pushes it to desired layer.
         for n in defined[label]:
             snn.add_spike((frame + 1), n, 10)
 
-for pre in inputs:
-    for post in outputs:
-        snn.create_synapse(pre, post, weight=np.random.random.uniform(0.1, 0.4), stdp_enabled=True)
+for pre in inputs:                                  # Makes 1500 synapses to connect everything together
+    for post in outputs:                            # Weight is anywhere in range with avg of .25, 1/4 of 1.0 (thresh)
+        snn.create_synapse(pre, post, weight=rng.uniform(0.1, 0.4), stdp_enabled=True)
+
+Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
+Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses
+snn.stdp_setup(Apos, Aneg, True, True)              # Sets up stdp based on values above
