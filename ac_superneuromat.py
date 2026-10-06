@@ -9,10 +9,14 @@ snn = SNN()
 descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
+inputs = descent_layer + ascent_layer
+
 # 10 neurons each -  decision layers (output layers)
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
 takeoff_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
 touch_go_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
+
+outputs = landing_layer + takeoff_layer + touch_go_layer
 
 start_takeoff = 1500
 end_takeoff = 2000
@@ -31,3 +35,7 @@ for start, end, label in log:
     for frame in range(start, end, 10):
         for n in defined[label]:
             snn.add_spike((frame + 1), n, 10)
+
+for pre in inputs:
+    for post in outputs:
+        snn.create_synapse(pre, post, weight=np.random.random.uniform(0.1, 0.4), stdp_enabled=True)
