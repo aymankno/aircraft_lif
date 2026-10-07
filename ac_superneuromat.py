@@ -2,7 +2,6 @@
 from superneuromat import SNN
 import cv2
 import numpy as np
-import pandas as pd
 
 rng = np.random.default_rng(0)
 
