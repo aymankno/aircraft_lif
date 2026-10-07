@@ -9,12 +9,12 @@ class LIF_neuron:
         self.thresh = thresh
         self.reset = reset
         self.dt = dt
-        self.alpha = 0.8
+        self.delta = 0.8
         self.old_input = 0
 
     def step(self, I_input):
         did_fire = False
-        smooth_input = ((self.alpha * I_input) + ((1 - self.alpha) * self.old_input))
+        smooth_input = ((self.delta * I_input) + ((1 - self.delta) * self.old_input))
         V_new = self.V + (self.dt / self.tau) * ((-1 * self.V) + smooth_input)
         if V_new > self.thresh:
             did_fire = True
