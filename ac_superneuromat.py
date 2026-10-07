@@ -80,21 +80,21 @@ for neuron in takeoff_layer:
 
 W = snn.weight_mat() # before; what started as
 
-descent_landing_before = W[np.ix_(descent_ids[:3], landing_ids)].mean()
-descent_takeoff_before = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
+descent_landing_before = W[np.ix_(descent_ids[:8], landing_ids)].mean()
+descent_takeoff_before = W[np.ix_(descent_ids[:2], takeoff_ids)].mean()
 
-ascent_landing_before = W[np.ix_(ascent_ids[:3], landing_ids)].mean()
-ascent_takeoff_before = W[np.ix_(ascent_ids[:3], takeoff_ids)].mean()
+ascent_landing_before = W[np.ix_(ascent_ids[:8], landing_ids)].mean()
+ascent_takeoff_before = W[np.ix_(ascent_ids[:2], takeoff_ids)].mean()
 
 snn.simulate(time_steps=5500) # simulates full stdp training with teacher spikes
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
-descent_landing_after = W[np.ix_(descent_ids[:3], landing_ids)].mean()
-descent_takeoff_after = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
+descent_landing_after = W[np.ix_(descent_ids[:8], landing_ids)].mean()
+descent_takeoff_after = W[np.ix_(descent_ids[:2], takeoff_ids)].mean()
 
-ascent_landing_after = W[np.ix_(ascent_ids[:3], landing_ids)].mean()
-ascent_takeoff_after = W[np.ix_(ascent_ids[:3], takeoff_ids)].mean()
+ascent_landing_after = W[np.ix_(ascent_ids[:8], landing_ids)].mean()
+ascent_takeoff_after = W[np.ix_(ascent_ids[:2], takeoff_ids)].mean()
 
 print()
 print("BEFORE:")
