@@ -125,8 +125,10 @@ test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
 
 for start, end, label in test_log:
     for frame in range(start, end):
-        for n in defined_inputs[label]:
-            snn.add_spike(frame-5500, n, 2.0) # add_spike time is relative to now; training already has it at 5,500 steps done
+        for n in takeoff_layer:
+            snn.add_spike(frame-5500, n, 1.5) # 1.5 since median ascent alpha (abs) was 1.5 in test footage
+        for n in landing_layer:
+            snn.add_spike(frame-5500, n, 4.25) # 4.25 since median descent alpha (abs) was 1.5 in test footage
 
 snn.simulate(time_steps=7500)
 
