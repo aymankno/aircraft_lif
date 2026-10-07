@@ -85,7 +85,7 @@ ascent_takeoff_before = W[np.ix_(ascent_ids[:3], takeoff_ids)].mean()
 
 snn.simulate(time_steps=5500) # simulates full stdp training with teacher spikes
 
-W = snn.weight_mat() # saves the NEW weights after training from test spikes
+W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
 descent_landing_after = W[np.ix_(descent_ids[:3], landing_ids)].mean()
 descent_takeoff_after = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
@@ -126,11 +126,11 @@ test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
 for start, end, label in test_log:
     for frame in range(start, end):
         for n in defined_inputs[label]:
-            snn.add_spike(frame-5500, n, 2.0) # Set frame - 5500 because after training frame was at 5,500, needs to reset.
+            snn.add_spike(frame-5500, n, 2.0) # add_spike time is relative to now; training already has it at 5,500 steps done
 
 snn.simulate(time_steps=7500)
 
-takeoff_takeoff_count = snn.ispikes[test_start_takeoff:test_end_takeoff, takeoff_ids].sum() # counts spike total to get # of events
+takeoff_takeoff_count = snn.ispikes[test_start_takeoff:test_end_takeoff, takeoff_ids].sum() # counts spikes from each group during test window
 takeoff_landing_count = snn.ispikes[test_start_takeoff:test_end_takeoff, landing_ids].sum()
 landing_landing_count = snn.ispikes[test_start_landing:test_end_landing, landing_ids].sum()
 landing_takeoff_count = snn.ispikes[test_start_landing:test_end_landing, takeoff_ids].sum()
