@@ -200,13 +200,13 @@ while True:
 
             if descent_parameters == True:
                 print("Descent", abs(delta_y))
-                descent_alphas.append(abs[delta_y])
+                descent_alphas.append(abs(delta_y))
                 for n in descent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
             elif ascent_parameters == True:
                 print("Ascent:", abs(delta_y))
-                ascent_alphas.append(abs[delta_y])
+                ascent_alphas.append(abs(delta_y))
                 for n in ascent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
@@ -223,6 +223,8 @@ print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_
 print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
 print()
 
-print("Descent alpha stats:", descent_alphas.describe())
-print("Ascent alpha stats:", ascent_alphas.describe())
+print("Descent alpha stats:", "min", np.min(descent_alphas), "max", np.max(descent_alphas),
+      "mean", np.mean(descent_alphas), "median", np.median(descent_alphas))
+print("Ascent alpha stats:", "min", np.min(ascent_alphas), "max", np.max(ascent_alphas),
+      "mean", np.mean(ascent_alphas), "median", np.median(ascent_alphas))
 print()
