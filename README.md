@@ -1,7 +1,15 @@
-## aircraft_counter
+# aircraft_counter
 Ayman Aghel - 9/14/2026
 
-Custom LIF network of five neurons to count aircraft and classify and sort by stage of flight: takeoff, landing, and touch & go. Initially coded in Python manually with OpenCV and NumPy, now with SuperNeuroMAT implementation.
+V1 = aircraft_counter.py - Custom LIF network coded manually in Python
+V2 = ac_superneuromat.py - SuperNeuroMAT spiking neural network
+
+Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
+
+Latest changes (10/6/2026):
+Finished a working version of the SNN with SuperNeuroMAT; passed synthetic input test after using teacher inputs to train. Up to 243 spikes in a 562 frame period during testing, 0 spikes from the incorrect input layer. Not yet tested on real video, planning to film footage of nearby GA field, aiming for 30 movements filmed (10 for each possible event).
+
+## Changelog
 
 ### Initial commit - 9/14/2026:
 Currently with a working, accurate landing neuron (neuron_1a), but takeoff neuron (neuron_1b) is faulty, so is touch and go (neuron_2). In next commit, will fix these neurons and begin working on a constantly working leak mechanic. Currently, neurons only leak when calling .step(), will include a working leak mechanic at end to accurately and continuously decrease voltage. Current leak mechanic does not work.
@@ -61,4 +69,17 @@ Future changes: Will begin testing on video and train as needed. Plans to film a
   booktitle = {Proceedings of the 2023 International Conference on Neuromorphic Systems},
   pages     = {1--4},
   year      = {2023}
+}
+
+@misc{date2026superneuromat,
+  title         = {SuperNeuroMAT: An Efficient Matrix-based Simulator for Spiking Neural Networks},
+  author        = {Date, Prasanna and Zhu, Kevin and Kulkarni, Shruti and Gautam, Ashish and
+                   Gunaratne, Chathika and Patton, Robert and Nitzsche, Tyler and Mulet, Ian and
+                   Johnson-Scott, Zachary and Helms, Addison and Rowden, Duncan and
+                   Weston, Simon and Parsa, Maryam and Schuman, Catherine and Potok, Thomas},
+  year          = {2026},
+  eprint        = {2608.08479},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.NE},
+  doi           = {10.48550/arXiv.2608.08479}
 }
