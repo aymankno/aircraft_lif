@@ -56,8 +56,10 @@ defined_inputs = {"takeoff": ascent_layer,
 
 for start, end, label in train_log:                       # Input Spike:
     for frame in range(start, end):   # Fake camera for when testing inputs with dummy values.
-        for n in defined_inputs[label]:
-            snn.add_spike((frame), n, 2.0)
+        for n in ascent_layer:
+            snn.add_spike((frame), n, 1.5) # Median delta
+        for n in descent_layer:
+            snn.add_spike((frame), n, 4.25) # Median delta
 
 descent_ids = []
 for neuron in descent_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
@@ -125,10 +127,8 @@ test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
 
 for start, end, label in test_log:
     for frame in range(start, end):
-        for n in takeoff_layer:
-            snn.add_spike(frame-5500, n, 1.5) # 1.5 since median ascent alpha (abs) was 1.5 in test footage
-        for n in landing_layer:
-            snn.add_spike(frame-5500, n, 4.25) # 4.25 since median descent alpha (abs) was 1.5 in test footage
+        for n in takeoff_layer[label]:
+            snn.add_spike(frame-5500, n, 2.0)
 
 snn.simulate(time_steps=7500)
 
@@ -169,8 +169,8 @@ frame_num = 0
 y_old = None
 video_start = snn.ispikes.shape[0]
 
-descent_alphas = []
-ascent_alphas = []
+descent_deltas = []
+ascent_deltas = []
 
 while True:
     ret, frame = cap.read()
@@ -201,13 +201,13 @@ while True:
 
             if descent_parameters == True:
                 print("Descent", abs(delta_y))
-                descent_alphas.append(abs(delta_y))
+                descent_deltas.append(abs(delta_y))
                 for n in descent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
             elif ascent_parameters == True:
                 print("Ascent:", abs(delta_y))
-                ascent_alphas.append(abs(delta_y))
+                ascent_deltas.append(abs(delta_y))
                 for n in ascent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
