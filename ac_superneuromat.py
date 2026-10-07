@@ -28,8 +28,8 @@ for pre in inputs:                                       # Makes 1500 synapses t
 print()
 print("TRAINING:")
 
-train_start_takeoff = 1500 # starting frame; not real, for testing
-train_end_takeoff = 2000   # ending frame; not real, for testing
+train_start_takeoff = 1500 # starting frame; not real, for teaching
+train_end_takeoff = 2000   # ending frame; not real, for teaching
 
 train_start_landing = 4500
 train_end_landing = 5000
@@ -60,7 +60,7 @@ for start, end, label in train_log:                       # Input Spike:
             snn.add_spike((frame), n, 2.0)
 
 descent_ids = []
-for neuron in descent_layer:
+for neuron in descent_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
     descent_ids.append(neuron.idx)
 
 ascent_ids = []
@@ -75,7 +75,7 @@ takeoff_ids = []
 for neuron in takeoff_layer:
     takeoff_ids.append(neuron.idx)
 
-W = snn.weight_mat()
+W = snn.weight_mat() # before; what started as
 
 descent_landing_before = W[np.ix_(descent_ids[:3], landing_ids)].mean()
 descent_takeoff_before = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
@@ -83,9 +83,9 @@ descent_takeoff_before = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
 ascent_landing_before = W[np.ix_(ascent_ids[:3], landing_ids)].mean()
 ascent_takeoff_before = W[np.ix_(ascent_ids[:3], takeoff_ids)].mean()
 
-snn.simulate(time_steps=5500)
+snn.simulate(time_steps=5500) # simulates full stdp training with teacher spikes
 
-W = snn.weight_mat()
+W = snn.weight_mat() # saves the NEW weights after training from test spikes
 
 descent_landing_after = W[np.ix_(descent_ids[:3], landing_ids)].mean()
 descent_takeoff_after = W[np.ix_(descent_ids[:3], takeoff_ids)].mean()
@@ -112,10 +112,9 @@ print()
 
 ### TESTING BELOW
 print("TESTING:")
-print()
-snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False)
+snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 
-test_start_takeoff = 8500
+test_start_takeoff = 8500 # new start/ends for takeoffs & landings
 test_end_takeoff = 9062
 
 test_start_landing = 10682
@@ -127,11 +126,11 @@ test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
 for start, end, label in test_log:
     for frame in range(start, end):
         for n in defined_inputs[label]:
-            snn.add_spike(frame, n, 2.0)
+            snn.add_spike(frame-5500, n, 2.0) # Set frame - 5500 because after training frame was at 5,500, needs to reset.
 
-snn.simulate(time_steps=15500)
+snn.simulate(time_steps=7500)
 
-takeoff_takeoff_count = snn.ispikes[test_start_takeoff:test_end_takeoff, takeoff_ids].sum()
+takeoff_takeoff_count = snn.ispikes[test_start_takeoff:test_end_takeoff, takeoff_ids].sum() # counts spike total to get # of events
 takeoff_landing_count = snn.ispikes[test_start_takeoff:test_end_takeoff, landing_ids].sum()
 landing_landing_count = snn.ispikes[test_start_landing:test_end_landing, landing_ids].sum()
 landing_takeoff_count = snn.ispikes[test_start_landing:test_end_landing, takeoff_ids].sum()
@@ -140,3 +139,4 @@ print("Takeoff-takeoff count:", takeoff_takeoff_count)
 print("Takeoff-landing count:", takeoff_landing_count)
 print("Landing-landing count:", landing_landing_count)
 print("Landing-takeoff count:", landing_takeoff_count)
+print()
