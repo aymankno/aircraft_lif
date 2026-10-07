@@ -165,6 +165,7 @@ def get_slope(y_old, y_new):
 
 frame_num = 0
 y_old = None
+video_start = snn.ispikes.shape[0]
 
 while True:
     ret, frame = cap.read()
@@ -205,11 +206,11 @@ while True:
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
 
-snn.simulate(frame_num)
+snn.simulate(frame_num+50)
 
 print()
-print("Descent layer", snn.ispikes[0:(0+frame_num), descent_ids ].sum())
-print("Ascent layer", snn.ispikes[0:(0+frame_num), ascent_ids ].sum())
-print("Landing layer", snn.ispikes[0:(0+frame_num), takeoff_ids ].sum())
-print("Takeoff layer", snn.ispikes[0:(0+frame_num), landing_ids ].sum())
+print("Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_ids ].sum())
+print("Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_ids ].sum())
+print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_ids ].sum())
+print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
 print()
