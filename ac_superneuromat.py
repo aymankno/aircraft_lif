@@ -140,3 +140,55 @@ print("Takeoff-landing count:", takeoff_landing_count)
 print("Landing-landing count:", landing_landing_count)
 print("Landing-takeoff count:", landing_takeoff_count)
 print()
+
+### VIDEO TESTING
+print("VIDEO TESTING BELOW:")
+video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
+cap = cv2.VideoCapture(video2)
+
+prev_frame = None
+backSub = cv2.createBackgroundSubtractorMOG2()
+
+### within_parameters only used when using certain online footage ( manual footage not yet filmed )
+def within_parameters(min, max):
+    is_within = False
+    if min <= delta_y <= max:
+        if right <= 1250:
+            if (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT]) <= 750:
+                if neuron_5.V < neuron_5.thresh:
+                    is_within = True
+    return is_within
+
+def get_slope(y_old, y_new):
+    delta_y = y_old - y_new
+    return delta_y
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    if prev_frame is None:
+        prev_frame = gray
+    mask = backSub.apply(gray)
+    prev_frame = gray
+    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+    if num_labels > 1:
+        best_i = np.argmax(stats[1: , cv2.CC_STAT_AREA]) + 1
+        if 1000 <= stats[best_i, cv2.CC_STAT_AREA] <= 25000:
+            centroid = (stats[best_i, cv2.CC_STAT_TOP] + (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])) / 2
+            if y_old is None:
+                y_old = centroid
+
+            top_left = (stats[best_i, cv2.CC_STAT_LEFT], stats[best_i, cv2.CC_STAT_TOP])
+            right = stats[best_i, cv2.CC_STAT_LEFT] + stats[best_i, cv2.CC_STAT_WIDTH]
+            bottom_right = (right, stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])
+            delta_y = get_slope(y_old, centroid)
+            y_old = centroid
+            cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
+
+            descent_parameters = within_parameters(-25, -0.1)
+            ascent_parameters = within_parameters(0.1, 15)
+
+            
+
