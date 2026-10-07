@@ -22,7 +22,7 @@ outputs = landing_layer + takeoff_layer + touch_go_layer
 
 for pre in inputs:                                       # Makes 1500 synapses to connect everything together
     for post in outputs:             # 3 inputs / frame, leak is 0.1 / frame. 0.1 / 3 = 0.0333; range has both min and max < 0.03333
-        snn.create_synapse(pre, post, weight=rng.uniform(0.01, 0.02), stdp_enabled=True)
+        snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
 
 ### TRAINING PIPELINE BELOW
 print()
@@ -54,12 +54,13 @@ snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)         
 defined_inputs = {"takeoff": ascent_layer,
                   "landing": descent_layer}
 
+train_values = {"takeoff": 1.5, 
+                "landing": 4.25}
+
 for start, end, label in train_log:                       # Input Spike:
     for frame in range(start, end):   # Fake camera for when testing inputs with dummy values.
-        for n in ascent_layer:
-            snn.add_spike((frame), n, 1.5) # Median delta
-        for n in descent_layer:
-            snn.add_spike((frame), n, 4.25) # Median delta
+        for n in defined_inputs[label]:
+            snn.add_spike(frame, n, train_values[label])
 
 descent_ids = []
 for neuron in descent_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
@@ -127,8 +128,8 @@ test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
 
 for start, end, label in test_log:
     for frame in range(start, end):
-        for n in takeoff_layer[label]:
-            snn.add_spike(frame-5500, n, 2.0)
+        for n in defined_inputs[label]:
+            snn.add_spike(frame, n, train_values[label])
 
 snn.simulate(time_steps=7500)
 
