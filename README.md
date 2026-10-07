@@ -61,6 +61,9 @@ Notes: Untaught output neurons were firing on their own during training, so init
 
 Future changes: Will begin testing on video and train as needed. Plans to film at local GA field set, expecting to film as many aircraft as possible with a  goal of filming 30 movements and at least 10 touch & goes. Will log start_time, end time, and type of movement for each movement.
 
+### Tested SuperNeuroMAT model on onlne footage, minor changes to LIF - 10/7/2026
+Copied the OpemCV initialization from aircraft_counter to ac_superneuromat.py with changes as needed. Connected delta_y to input neurons and copied over within_parameters (footage is online with graphics on right-hand side). After running, discovered large differences between takeoff and landing spikes: 19 takeoff spikes and 117 landing spikes. Then, changed synapses' weights to a new range: 0.0035 - 0.0084 to ensure that neurons firing do not overpower leak (more neurons firing for descent layer with new training). Fixed several bugs and syntax errors, then ran to discover 694 ascent spikes yet 0 takeoff spikes. Planning to train with more synthetic data to fix this issue. More changes soon.
+
 ## Acknowledgements:
 
 ```bibtex
