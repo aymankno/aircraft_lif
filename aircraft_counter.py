@@ -35,7 +35,7 @@ def get_slope(y_old, y_new):
     return delta_y
 
 # designed for certain video used for testing with graphic on right side
-def within_paramaters(min, max):
+def within_parameters(min, max):
     is_within = False
     if min <= delta_y <= max:
         if right <= 1250:
@@ -98,10 +98,10 @@ while True:
             y_old = centroid
             cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
 
-            descent_paramaters = within_paramaters(-25, -0.1)
-            ascent_paramaters = within_paramaters(0.1, 15)
+            descent_parameters = within_parameters(-25, -0.1)
+            ascent_parameters = within_parameters(0.1, 15)
 
-            if descent_paramaters == True:
+            if descent_parameters == True:
                 _, fired_2 = neuron_2.step(abs(delta_y))
                 neuron_1.leak()
                 neuron_4.leak()
@@ -112,7 +112,7 @@ while True:
                     neuron_3.V = neuron_3.reset
                     neuron_2.V = neuron_2.reset                        
 
-            elif ascent_paramaters == True:
+            elif ascent_parameters == True:
                 _, fired_1 = neuron_1.step(abs(delta_y))
                 _, fired_4 = neuron_4.step(abs(delta_y))
                 neuron_2.leak()
