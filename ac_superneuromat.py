@@ -223,9 +223,3 @@ print("Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_id
 print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_ids ].sum())
 print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
 print()
-
-print("Descent alpha stats:", "min", np.min(descent_alphas), "max", np.max(descent_alphas),
-      "mean", np.mean(descent_alphas), "median", np.median(descent_alphas))
-print("Ascent alpha stats:", "min", np.min(ascent_alphas), "max", np.max(ascent_alphas),
-      "mean", np.mean(ascent_alphas), "median", np.median(ascent_alphas))
-print()
