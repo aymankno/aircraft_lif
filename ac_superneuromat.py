@@ -195,10 +195,12 @@ while True:
             ascent_parameters = within_parameters(0.1, 15)
 
             if descent_parameters == True:
+                print("Descent" abs(delta_y))
                 for n in descent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
             elif ascent_parameters == True:
+                print("Ascent:" abs(delta_y))
                 for n in ascent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
