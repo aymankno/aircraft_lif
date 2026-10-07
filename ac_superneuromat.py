@@ -110,7 +110,7 @@ print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_afte
 print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_after - ascent_takeoff_before)
 print()
 
-### TESTING BELOW
+### SYNTHETIC TESTING BELOW
 print("TESTING:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 
@@ -141,8 +141,9 @@ print("Landing-landing count:", landing_landing_count)
 print("Landing-takeoff count:", landing_takeoff_count)
 print()
 
-### VIDEO TESTING
+### VIDEO TESTING AND TRAINING; SAME VIDEO
 print("VIDEO TESTING BELOW:")
+# snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=True)
 video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
 cap = cv2.VideoCapture(video2)
 
@@ -155,13 +156,15 @@ def within_parameters(min, max):
     if min <= delta_y <= max:
         if right <= 1250:
             if (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT]) <= 750:
-                if neuron_5.V < neuron_5.thresh:
                     is_within = True
     return is_within
 
 def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
+
+frame_num = 0
+y_old = None
 
 while True:
     ret, frame = cap.read()
@@ -190,5 +193,23 @@ while True:
             descent_parameters = within_parameters(-25, -0.1)
             ascent_parameters = within_parameters(0.1, 15)
 
-            
+            if descent_parameters == True:
+                for n in descent_layer:
+                    snn.add_spike(frame_num, n, abs(delta_y))
 
+            elif ascent_parameters == True:
+                for n in ascent_layer:
+                    snn.add_spike(frame_num, n, abs(delta_y))
+
+    frame_num += 1
+    cv2.imshow("Aircraft Counter LIF", frame)
+    cv2.waitKey(33)
+
+snn.simulate(frame_num)
+
+print()
+print("Descent layer", snn.ispikes[0:(0+frame_num), descent_ids ].sum())
+print("Ascent layer", snn.ispikes[0:(0+frame_num), ascent_ids ].sum())
+print("Landing layer", snn.ispikes[0:(0+frame_num), takeoff_ids ].sum())
+print("Takeoff layer", snn.ispikes[0:(0+frame_num), landing_ids ].sum())
+print()
