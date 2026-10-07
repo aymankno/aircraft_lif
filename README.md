@@ -45,6 +45,11 @@ Renamed superNM.py to ac_superneuromat.py for readability. "ac", short for aircr
 
 Important changes to aircraft_counter.py (fundamental): While working through the conversion from aircraft_counter.py to ac_superneuromat.py, it became evident that in the event of a go-around, under current architecture, a go-around would never been counted and instead be counted as a landing due to the fact that neurons act independently of each other. Resulted in all neurons being repurposed in some way, like neuron_1 and 2 being changed to ascent/descent, and neuron_3-4 becoming time neurons. Furthermore, while doing independent reading on SNNs, I came to the realization that aircraft_counter.py is not a manually coded SNN and is instead a custom system of LIFs with a heavy dependency on if statements with Python. This means that aircraft_counter.py will be used as reference in the future and likely will not be used for testing of parameters both due to the lack of synapses and of neurons (singular neurons rather than systems of neurons). Furthermore, this repository, aircraft_counter, will now have a heavy focus on ac_superneuromat.py for this reason.
 
+### Trained ac_superneuromat.py on fake values, successful - 10/6/2026
+Added input spike to training and completed successfully, wrote full test and completed successfully. For teacher spikes, neurons paramaters would change by 0.0319 for descent-landing neurons and ascent-takeoff neurons but remain the same for descent-takeoff and ascent-landing neurons; an expected result. For testing, manually fed correct input neuron layers spikes within given ranges of takeoffs and landings, found 212 events for landing-landing and 242 for takeoff-takeoff, while neuron layers without coorelation (takeoff-landing, landing-takeoff) would have no events counted. These are the first real results to come from ac_superneuromat.py; aircraft_counter coded with SuperNeuroMAT.
+
+Future changes: Will begin testing on video and train as needed. Plans to film at local GA field set, expecting to film as many aircraft as possible with a  goal of filing 30 movements and at least 2 touch & goes.  
+
 ## Acknowledgements:
 
 ```bibtex
