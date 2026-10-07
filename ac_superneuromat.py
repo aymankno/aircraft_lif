@@ -2,6 +2,7 @@
 from superneuromat import SNN
 import cv2
 import numpy as np
+import pandas as pd
 
 rng = np.random.default_rng(0)
 
@@ -167,6 +168,9 @@ frame_num = 0
 y_old = None
 video_start = snn.ispikes.shape[0]
 
+descent_alphas = []
+ascent_alphas = []
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -196,11 +200,13 @@ while True:
 
             if descent_parameters == True:
                 print("Descent", abs(delta_y))
+                descent_alphas.append(abs[delta_y])
                 for n in descent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
             elif ascent_parameters == True:
                 print("Ascent:", abs(delta_y))
+                ascent_alphas.append(abs[delta_y])
                 for n in ascent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
@@ -215,4 +221,8 @@ print("Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_
 print("Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_ids ].sum())
 print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_ids ].sum())
 print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
+print()
+
+print("Descent alpha stats:", descent_alphas.describe())
+print("Ascent alpha stats:", ascent_alphas.describe())
 print()
