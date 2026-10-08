@@ -222,16 +222,16 @@ while True:
             y_old = centroid
             cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
 
-            if descent_parameters == True:
-                descent_deltas.append(abs(delta_y))
-                for n in descent_layer:
-                    snn.add_spike(video_start + frame_num + 50, n, abs(delta_y))
+            descent_parameters = within_parameters(-25, -0.1)
+            ascent_parameters = within_parameters(0.1, 15)
 
+            if descent_parameters == True:
+                for n in descent_layer:
+                    snn.add_spike(0, n, abs(delta_y))
 
             elif ascent_parameters == True:
-                ascent_deltas.append(video_start + frame_num + 50, n, abs(delta_y))
                 for n in ascent_layer:
-                    snn.add_spike(video_start + frame_num + 50, n, abs(delta_y))
+                    snn.add_spike(0, n, abs(delta_y))
 
     snn.simulate(1)
     latest = snn.ispikes[-1]
