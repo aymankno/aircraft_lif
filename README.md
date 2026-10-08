@@ -10,6 +10,9 @@ Neuromorphic-inspired network to count and classify takeoffs, landings, and touc
 Latest changes (10/6/2026):
 Finished a working version of the SNN with SuperNeuroMAT; passed synthetic input test after using teacher inputs to train. Up to 243 spikes in a 562 frame period during testing, 0 spikes from the incorrect input layer. Not yet tested on real video, planning to film footage of nearby GA field, aiming for 30 movements filmed (10 for each possible event).
 
+## License
+[PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
+
 ## Changelog
 
 ### Initial commit - 9/14/2026:
