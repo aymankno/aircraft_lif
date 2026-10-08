@@ -224,7 +224,7 @@ while True:
             if descent_parameters == True:
                 descent_deltas.append(abs(delta_y))
                 for n in descent_layer:
-                    snn.add_spike(frame_num, n, abs(delta_y))
+                    snn.add_spike(video_start + frame_num + 50, n, abs(delta_y))
 
             elif ascent_parameters == True:
                 ascent_deltas.append(abs(delta_y))
