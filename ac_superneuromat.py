@@ -193,9 +193,13 @@ def get_slope(y_old, y_new):
 frame_num = 0
 y_old = None
 video_start = snn.ispikes.shape[0]
-
+delta_y = 0
 descent_deltas = []
 ascent_deltas = []
+
+descent_parameters = within_parameters(-25, -0.1)
+ascent_parameters = within_parameters(0.1, 15)
+
 
 while True:
     ret, frame = cap.read()
@@ -218,24 +222,30 @@ while True:
             y_old = centroid
             cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
 
-            descent_parameters = within_parameters(-25, -0.1)
-            ascent_parameters = within_parameters(0.1, 15)
-
             if descent_parameters == True:
                 descent_deltas.append(abs(delta_y))
                 for n in descent_layer:
                     snn.add_spike(video_start + frame_num + 50, n, abs(delta_y))
 
-            elif ascent_parameters == True:
-                ascent_deltas.append(abs(delta_y))
-                for n in ascent_layer:
-                    snn.add_spike(frame_num, n, abs(delta_y))
 
-    frame_num += 1
+            elif ascent_parameters == True:
+                ascent_deltas.append(video_start + frame_num + 50, n, abs(delta_y))
+                for n in ascent_layer:
+                    snn.add_spike(video_start + frame_num + 50, n, abs(delta_y))
+
+    snn.simulate(1)
+    latest = snn.ispikes[-1]
+    takeoff_spiked = latest[takeoff_ids].any()
+    if takeoff_spiked:
+        print("TAKEOFF")
+    landing_spiked = latest[landing_ids].any()
+    if landing_spiked:
+        print("LANDING")
     cv2.imshow("Aircraft Counter LIF", frame)
     cv2.waitKey(33)
+    frame_num += 1
 
-snn.simulate(frame_num+50)
+ # snn.simulate(frame_num+50)
 
 print()
 print("Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_ids ].sum())
