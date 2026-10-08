@@ -28,14 +28,39 @@ for pre in inputs:                                       # Makes 1500 synapses t
 print()
 print("TRAINING:")
 
-train_start_takeoff = 1500 # starting frame; not real, for teaching
-train_end_takeoff = 2000   # ending frame; not real, for teaching
+### More synthetic data to train ascent neuron further; not firing in real video due to large differences in delta abs. from descent
+train_start_takeoff_1 = 1500 # starting frame; not real, for teaching
+train_end_takeoff_1 = 2000   # ending frame; not real, for teaching
 
-train_start_landing = 4500
-train_end_landing = 5000
+train_start_landing_1 = 4500
+train_end_landing_1 = 5000
 
-train_log = [(train_start_takeoff, train_end_takeoff, "takeoff"),
-       (train_start_landing, train_end_landing, "landing")]
+train_start_takeoff_2 = 50
+train_end_takeoff_2 = 400 
+
+train_start_landing_2 = 5200
+train_end_landing_2 = 5800
+
+train_start_takeoff_3 = 500 
+train_end_takeoff_3 = 1000 
+
+train_start_landing_3 = 9000
+train_end_landing_3 = 10000
+
+train_start_takeoff_4 = 12500
+train_end_takeoff_4 = 15000 
+
+train_start_landing_4 = 6000
+train_end_landing_4 = 6300
+
+train_log = [(train_start_takeoff_1, train_end_takeoff_1, "takeoff"),
+            (train_start_landing_1, train_end_landing_1, "landing"),
+            (train_start_takeoff_2, train_end_takeoff_2, "takeoff"),
+            (train_start_landing_2, train_end_landing_2, "landing"),
+            (train_start_takeoff_3, train_end_takeoff_3, "takeoff"),
+            (train_start_landing_3, train_end_landing_3, "landing"),
+            (train_start_takeoff_4, train_end_takeoff_4, "takeoff"),
+            (train_start_landing_4, train_end_landing_4, "landing")]
         # and will add touch/go when footage filmed
 
 defined_outputs = {"takeoff": takeoff_layer,
