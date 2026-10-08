@@ -111,7 +111,8 @@ descent_takeoff_before = W[np.ix_(descent_ids[:2], takeoff_ids)].mean()
 ascent_landing_before = W[np.ix_(ascent_ids[:8], landing_ids)].mean()
 ascent_takeoff_before = W[np.ix_(ascent_ids[:2], takeoff_ids)].mean()
 
-snn.simulate(time_steps=5500) # simulates full stdp training with teacher spikes
+steps = 15520
+snn.simulate(time_steps=steps) # simulates full stdp training with teacher spikes
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
@@ -142,11 +143,11 @@ print()
 print("TESTING:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 
-test_start_takeoff = 8500 # new start/ends for takeoffs & landings
-test_end_takeoff = 9062
+test_start_takeoff = 18500 # new start/ends for takeoffs & landings
+test_end_takeoff = 19062
 
-test_start_landing = 10682
-test_end_landing = 11176
+test_start_landing = 20682
+test_end_landing = 21176
 
 test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
             (test_start_landing, test_end_landing, "landing")]
@@ -154,9 +155,9 @@ test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
 for start, end, label in test_log:
     for frame in range(start, end):
         for n in defined_inputs[label]:
-            snn.add_spike(frame-5500, n, train_values[label])
+            snn.add_spike(frame-steps, n, train_values[label])
 
-snn.simulate(time_steps=7500)
+snn.simulate(time_steps=22000)
 
 takeoff_takeoff_count = snn.ispikes[test_start_takeoff:test_end_takeoff, takeoff_ids].sum() # counts spikes from each group during test window
 takeoff_landing_count = snn.ispikes[test_start_takeoff:test_end_takeoff, landing_ids].sum()
@@ -226,13 +227,11 @@ while True:
             ascent_parameters = within_parameters(0.1, 15)
 
             if descent_parameters == True:
-                print("Descent", abs(delta_y))
                 descent_deltas.append(abs(delta_y))
                 for n in descent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
 
             elif ascent_parameters == True:
-                print("Ascent:", abs(delta_y))
                 ascent_deltas.append(abs(delta_y))
                 for n in ascent_layer:
                     snn.add_spike(frame_num, n, abs(delta_y))
