@@ -155,7 +155,7 @@ test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
 for start, end, label in test_log:
     for frame in range(start, end):
         for n in defined_inputs[label]:
-            snn.add_spike(frame-steps, n, train_values[label])
+            snn.add_spike(frame-steps, n, train_values[label]) # train_values: lines 82/83
 
 snn.simulate(time_steps=22000)
 
