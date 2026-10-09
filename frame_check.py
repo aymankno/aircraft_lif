@@ -36,8 +36,13 @@ with open('video9_labels.csv', "w", newline="") as f:
         while True:
             ret, frame = cap.read()
             cv2.imshow("VIDEO9", frame)
+            key = cv2.waitKey(33) & 0xFF
             current_frame += 1
             if current_frame == frame_end:
+                cap.destroyAllWindows()
+                break
+            elif key == ord("s"):
+                cap.destroyAllWindows()
                 break
 
         event = input("Event was: t/g (g), takeoff (t), or landing (l)? ")
@@ -50,16 +55,18 @@ with open('video9_labels.csv', "w", newline="") as f:
         if event == "a":
             event = "go-around"
 
-        dist = input("Far (f) or near (n)? ")
+        dist = input("Far (f), near (n), or both (b? ")
         if dist == "f":
             dist = "far"
         if dist == "n":
             dist = "near"
+        if dist == "b":
+            dist = "both"
             
         print(f"{event.upper()}: {frame_start}:{frame_end}, {dist}")
         save = input("Confirm (y) ")
         if save == "y":
-            writer.writerow(frame_start, frame_end, dist, event)
+            writer.writerow([frame_start, frame_end, dist, event])
             print("Saved")
         else:
             print("Event not saved. Canceled")
