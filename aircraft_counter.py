@@ -71,7 +71,6 @@ video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
 #video_3 = "videos/video3.mp4"
 cap = cv2.VideoCapture(video2)
 
-prev_frame = None
 backSub = cv2.createBackgroundSubtractorMOG2()
 
 while True:
@@ -79,10 +78,7 @@ while True:
     if not ret:
         break
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    if prev_frame is None:
-        prev_frame = gray
     mask = backSub.apply(gray)
-    prev_frame = gray
     num_labels, _, stats, _ = cv2.connectedComponentsWithStats(mask)
     if num_labels > 1:
         best_i = np.argmax(stats[1: , cv2.CC_STAT_AREA]) + 1
