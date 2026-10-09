@@ -11,8 +11,6 @@ snn = SNN()
 # 25 neurons each - eyes of SNN (input layers)
 descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-growing_layer = [snn.create_neuron(threshold = ((i+1) * 0.5)) for i in range(25)]
-shrinking_layer = [snn.create_neuron(threshold = ((i+1) * 0.5)) for i in range(25)]
 
 inputs = descent_layer + ascent_layer
 
@@ -38,17 +36,24 @@ defined_outputs = {"takeoff": takeoff_layer,
                    "landing": landing_layer,
                    "touch/go": touch_go_layer}
 
-for start, end, area, movement in video9_labels:                      # Teacher Spike:
-    for frame in range(start, end, 10):             # Points to an event, pushes it to desired layer.
-        for n in defined_outputs[movement]:
-            snn.add_spike((frame + 1), n, 10)
+with open(video9_labels) as f:
+    next(f)
+    for row in f:                                    # Teacher Spike:
+        row = row.strip()
+        if not row:
+            continue
+        start, end, area, movement = row.split(',')
+        start, end = int(start), int(end)
+        for frame in range(start, end, 10):
+            for n in defined_outputs[movement]:
+                snn.add_spike((frame + 1), n, 10)
 
 Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
 Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses
 snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)              # Sets up stdp based on values above
 
-defined_inputs = {"takeoff": ascent_layer,
-                  "landing": descent_layer}
+defined_delta_inputs = {"takeoff": ascent_layer,
+                        "landing": descent_layer}
 
 def get_slope(y_old, y_new):
     delta_y = y_old - y_new
@@ -58,11 +63,11 @@ def size_changing(centroid_y, centroid_x):
     pass # will write
 
 y_old = None
-
 video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
-cap = cv2.read(video9)
+cap = cv2.VideoCapture(video9)
 backSub = cv2.createBackgroundSubtractorMOG2()
 
+frame_num = 0
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -70,17 +75,28 @@ while True:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     mask = backSub.apply(gray)
     num_labels, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+    centroid = None
     if num_labels > 1:
         best_i = np.argmax(stats[1: , cv2.CC_STAT_AREA]) + 1
         if 1000 <= stats[best_i, cv2.CC_STAT_AREA] <= 25000:
             centroid = (stats[best_i, cv2.CC_STAT_TOP] + (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])) / 2
-            if y_old is None:
-                y_old = centroid
+    
+    if centroid and y_old is not None:
+        delta_y = get_slope(y_old, centroid)
+        with open(video9_labels) as f:
+            next(f)
+            for row in f:                                    # Teacher Spike:
+                row = row.strip()
+                if not row:
+                    continue
+                start, end, area, movement = row.split(',')
+                start, end = int(start), int(end)
+                for frame in range(start, end, 10):
+                    for n in defined_outputs[movement]:
+                        snn.add_spike((frame + 1), n, 10)
 
-    for start, end, near, movement in video9_labels:                       # Input Spike:
-        for frame in range(start, end):                # Fake camera for when testing inputs with dummy values.
-            for n in defined_inputs[near]:
-                snn.add_spike(frame, n, abs(delta_y))
+    y_old = centroid
+    frame_num += 1
 
 descent_ids = []
 for neuron in descent_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
