@@ -14,82 +14,64 @@ with open('video9_labels.csv', "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["start", "end", "area", "movement", "type"])
 
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    
+    print()
     while True:
-        ret, frame = cap.read()
-        if not ret:
+        minute_start = int(input("Minutes (start): "))
+        if minute_start == "q":
             break
+        second_start = int(input("Seconds (start): "))
+        frame_start = int(((minute_start * 60) + (second_start)) * fps)
+        print(f"Start: {frame_start}")
 
-        if key == ord('s'):
-            start = current_frame
-            print("start")
+        minute_end = int(input("Minutes (end): "))
+        second_end = int(input("Seconds (end): "))
+        frame_end = int(((minute_end * 60) + (second_end)) * fps)
+        print(f"End: {frame_end}")
 
-        elif key == ord('t'):
-            if start != None:
-                area = "far"
-                end = current_frame
-                writer.writerow([start, end, "takeoff"])
-                f.flush()
-                print(f"TAKEOFF:, {start}, {end}, {area}")
-                start = None
-                area = None
-        elif key == ord('l'):
-            if start != None:
-                area = "near"
-                end = current_frame
-                writer.writerow([start, end, "landing"])
-                f.flush()
-                print(f"LANDING:, {start}, {end}, {area}")
-                start = None
-                area = None
-        elif key == ord("g"):
-            if start != None:
-                area = "both"
-                end = current_frame
-                writer.writerow([start, end, area, "touch_go"])
-                f.flush()
-                print(f"TOUCH/GO:, {start}, {end}, {area}")
-                start = None
-                area = None
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
+        current_frame = frame_start
 
-        # channel 2; two planes in one shot
-        elif key == ord("1"):
-            start_1 = current_frame
-            print("start on second channel. t/o: 2, landing: 3, t/g: 4")
-        elif key == ord("2"):
-            if start_1 != None:
-                area_1 = "far"
-                end_1 = current_frame
-                writer.writerow([start, end, "takeoff"])
-                f.flush()
-                print(f"TAKEOFF chnl 2:, {start}, {end}, {area}")
-                start = None
-                area = None
-        elif key == ord('3'):
-            if start_1 != None:
-                area_1 = "near"
-                end_1 = current_frame
-                writer.writerow([start_1, end_1, "landing"])
-                f.flush()
-                print(f"LANDING chnl 2:, {start_1}, {end_1}, {area_1}")
-                star_1 = None
-                area_1 = None
-        elif key == ord("4"):
-            if start_1 != None:
-                area_1 = "both"
-                end_1 = current_frame
-                writer.writerow([start_1, end_1, area_1, "touch_go"])
-                f.flush()
-                print(f"TOUCH/GO chnl 2:, {start_1}, {end_1}, {area_1}")
-                start_1 = None
-                area_1 = None
+        while True:
+            ret, frame = cap.read(video9)
+            cv2.imshow("VIDEO9", frame)
+            current_frame += 1
+            if current_frame == frame_end:
+                break
+
+        event = input("Event was: t/g (g), takeoff (t), or landing (l)? ")
+        if event == "t":
+            event = "takeoff"
+        if event == "l":
+            event = "landing"
+        if event == "g":
+            event = "touch/go"
+        if event == "a":
+            event = "go-around"
+
+        dist = input("Far (f) or near (n)? ")
+        if dist == "f":
+            dist = "far"
+        if dist == "n":
+            dist = "near"
+            
+        print(f"{event.upper()}: {frame_start}:{frame_end}, {dist}")
+        save = input("Confirm (y) ")
+        if save == "y":
+            writer.writerow(frame_start, frame_end, dist, event)
+            print("Saved")
+        else:
+            print("Event not saved. Canceled")
+
+        
 
 
-        elif key == ord(" "):
-            cv2.waitKey(0)
-        elif key == ord("q"):
-            break
 
 
-        cv2.imshow("FRAME CHECK - VIDEO 9", frame)
-        key = cv2.waitKey(33) & 0xFF
-        current_frame += 1
+
+
+
+
+
+
