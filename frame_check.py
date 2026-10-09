@@ -7,8 +7,8 @@ video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
 
 cap = cv2.VideoCapture(video9)
 backSub = cv2.createBackgroundSubtractorMOG2()
-end = 0
 key = None
+current_frame = 0
 
 with open('video9_labels.csv', "w", newline="") as f:
     writer = csv.writer(f)
@@ -19,12 +19,9 @@ with open('video9_labels.csv', "w", newline="") as f:
         if not ret:
             break
 
-        if key == ord('1'):
+        if key == ord('s'):
             start = current_frame
-            print("Start - close")
-        if key == ord('2'):
-            start_2 = current_frame
-            print("Start - far")
+            print("start")
 
         elif key == ord('t'):
             if start != None:
@@ -33,8 +30,6 @@ with open('video9_labels.csv', "w", newline="") as f:
                     area = "far"
                 if area == "n":
                     area = "near"
-                else:
-                    area = ("Invalid. Type 'far' or 'near' ")
                 end = current_frame
                 writer.writerow([start, end, "takeoff"])
                 f.flush()
@@ -48,8 +43,6 @@ with open('video9_labels.csv', "w", newline="") as f:
                     area = "far"
                 if area == "n":
                     area = "near"
-                else:
-                    area = ("Invalid. Type 'far' or 'near' ")
                 end = current_frame
                 writer.writerow([start, end, "landing"])
                 f.flush()
@@ -58,13 +51,7 @@ with open('video9_labels.csv', "w", newline="") as f:
                 area = None
         elif key == ord("g"):
             if start != None:
-                area = input("far (f) or near (n)? ")
-                if area == "f":
-                    area = "far"
-                if area == "n":
-                    area = "near"
-                else:
-                    area = ("Invalid. Type 'far' or 'near' ")
+                area = "both"
                 end = current_frame
                 writer.writerow([start, end, area, "touch_go"])
                 f.flush()
