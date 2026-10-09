@@ -11,12 +11,13 @@ snn = SNN()
 # 25 neurons each - eyes of SNN (input layers)
 descent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+size_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
 descent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 size_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
-inputs = descent_near_layer + ascent_near_layer + descent_far_layer + ascent_far_layer
+inputs = descent_near_layer + ascent_near_layer + descent_far_layer + ascent_far_layer + size_near_layer + size_far_layer
 
 # 10 neurons each -  decision layers (output layers)
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
@@ -44,6 +45,7 @@ def track(mask, box, min_area, max_area):
         return None, None
     top = stats[best_i, cv2.CC_STAT_TOP]
     height = stats[best_i, cv2.CC_STAT_HEIGHT]
+
     return top + height / 2, area
 
 ### TRAINING PIPELINE BELOW
@@ -87,9 +89,11 @@ with open(video9_labels) as f:
             for n in defined_outputs[movement]:
                 snn.add_spike((f_idx + 1), n, 10)
 
-FAR_MIN = 100 # WILL MAKE TESTS
-FAR_MAX = 800
-MIN_MOVE = 1.5
+far_min = 100 # WILL MAKE TESTS
+far_max = 800
+min_move = 1.5
+min_far_area = None
+min_near_area = None
 
 near_y_old = None
 far_y_old = None
@@ -104,37 +108,40 @@ while True:
     near_mask = mask.copy()
     near_mask[604:755, 974:1239] = 0
     near_y, near_area = track(near_mask, NEAR_BOX, 1000, 25000)
-    far_y, far_area = track(mask, FAR_BOX, FAR_MIN, FAR_MAX)
+    far_y, far_area = track(mask, FAR_BOX, far_min, far_max)
     num_labels, _, stats, _ = cv2.connectedComponentsWithStats(mask)
-    centroid = None
-    if num_labels > 1:
-        best_i = np.argmax(stats[1: , cv2.CC_STAT_AREA]) + 1
-        if 200 <= stats[best_i, cv2.CC_STAT_AREA] <= 25000:
-            centroid = (stats[best_i, cv2.CC_STAT_TOP] + (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])) / 2
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
-        if near_dy > MIN_MOVE:
+        if near_dy > min_move:
             for n in ascent_near_layer:
                 snn.add_spike(frame_idx, n, ascent_near_layer, abs(near_dy))
-        elif near_dy < -MIN_MOVE:
+        elif near_dy < -min_move:
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, descent_near_layer, abs(near_dy))
+        elif near_area > min_near_area:
+            for n in size_near_layer:
+                snn.add_spike(frame_idx, n, size_near_layer, far_area)
+
 
     if far_y is not None and far_y_old is not None:
         far_dy = get_slope(far_y_old, far_y)
-        if far_dy > MIN_MOVE:
+        if far_dy > min_move:
             for n in ascent_far_layer:
                 snn.add_spike(frame_idx, n, ascent_far_layer, abs(far_dy))
-        elif far_dy < -MIN_MOVE:
+        elif far_dy < -min_move:
             for n in descent_far_layer:
                 snn.add_spike(frame_idx, n, descent_far_layer, abs(far_dy))
+        elif far_area > min_far_area:
+            for n in size_far_layer:
+                snn.add_spike(frame_idx, n, size_far_layer, far_area)
 
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
 
 snn.simulate(frame_idx + 5)
+
 ### everything below not yet tested 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
