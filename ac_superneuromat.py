@@ -2,6 +2,7 @@
 from superneuromat import SNN
 import cv2
 import numpy as np
+import pandas as pd
 
 rng = np.random.default_rng(0)
 
@@ -10,6 +11,8 @@ snn = SNN()
 # 25 neurons each - eyes of SNN (input layers)
 descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+growing_layer = [snn.create_neuron(threshold = ((i+1) * 0.5)) for i in range(25)]
+shrinking_layer = [snn.create_neuron(threshold = ((i+1) * 0.5)) for i in range(25)]
 
 inputs = descent_layer + ascent_layer
 
@@ -27,49 +30,17 @@ for pre in inputs:                                       # Makes 1500 synapses t
 ### TRAINING PIPELINE BELOW
 print()
 print("TRAINING:")
+video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
+pd.read_csv(video9_labels)
 
-### More synthetic data to train ascent neuron further; not firing in real video due to large differences in delta abs. from descent
-train_start_takeoff_1 = 1500 # starting frame; not real, for teaching
-train_end_takeoff_1 = 2000   # ending frame; not real, for teaching
-
-train_start_landing_1 = 4500
-train_end_landing_1 = 5000
-
-train_start_takeoff_2 = 50
-train_end_takeoff_2 = 400 
-
-train_start_landing_2 = 5200
-train_end_landing_2 = 5800
-
-train_start_takeoff_3 = 500 
-train_end_takeoff_3 = 1000 
-
-train_start_landing_3 = 9000
-train_end_landing_3 = 10000
-
-train_start_takeoff_4 = 12500
-train_end_takeoff_4 = 15000 
-
-train_start_landing_4 = 6000
-train_end_landing_4 = 6300
-
-train_log = [(train_start_takeoff_1, train_end_takeoff_1, "takeoff"),
-            (train_start_landing_1, train_end_landing_1, "landing"),
-            (train_start_takeoff_2, train_end_takeoff_2, "takeoff"),
-            (train_start_landing_2, train_end_landing_2, "landing"),
-            (train_start_takeoff_3, train_end_takeoff_3, "takeoff"),
-            (train_start_landing_3, train_end_landing_3, "landing"),
-            (train_start_takeoff_4, train_end_takeoff_4, "takeoff"),
-            (train_start_landing_4, train_end_landing_4, "landing")]
-        # and will add touch/go when footage filmed
 
 defined_outputs = {"takeoff": takeoff_layer,
-                   "landing": landing_layer}
-        # will add touch/go when filmed
+                   "landing": landing_layer,
+                   "touch/go": touch_go_layer}
 
-for start, end, label in train_log:                      # Teacher Spike:
-    for frame in range(start, end, 10):   # Points to an event, pushes it to desired layer.
-        for n in defined_outputs[label]:
+for start, end, area, movement in video9_labels:                      # Teacher Spike:
+    for frame in range(start, end, 10):             # Points to an event, pushes it to desired layer.
+        for n in defined_outputs[movement]:
             snn.add_spike((frame + 1), n, 10)
 
 Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
@@ -79,13 +50,37 @@ snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)         
 defined_inputs = {"takeoff": ascent_layer,
                   "landing": descent_layer}
 
-train_values = {"takeoff": 1.5, 
-                "landing": 4.25}
+def get_slope(y_old, y_new):
+    delta_y = y_old - y_new
+    return delta_y
 
-for start, end, label in train_log:                       # Input Spike:
-    for frame in range(start, end):   # Fake camera for when testing inputs with dummy values.
-        for n in defined_inputs[label]:
-            snn.add_spike(frame, n, train_values[label])
+def size_changing(centroid_y, centroid_x):
+    pass # will write
+
+y_old = None
+
+video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
+cap = cv2.read(video9)
+backSub = cv2.createBackgroundSubtractorMOG2()
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    mask = backSub.apply(gray)
+    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+    if num_labels > 1:
+        best_i = np.argmax(stats[1: , cv2.CC_STAT_AREA]) + 1
+        if 1000 <= stats[best_i, cv2.CC_STAT_AREA] <= 25000:
+            centroid = (stats[best_i, cv2.CC_STAT_TOP] + (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT])) / 2
+            if y_old is None:
+                y_old = centroid
+
+    for start, end, near, movement in video9_labels:                       # Input Spike:
+        for frame in range(start, end):                # Fake camera for when testing inputs with dummy values.
+            for n in defined_inputs[near]:
+                snn.add_spike(frame, n, abs(delta_y))
 
 descent_ids = []
 for neuron in descent_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
@@ -177,15 +172,6 @@ cap = cv2.VideoCapture(video2_online)
 
 backSub = cv2.createBackgroundSubtractorMOG2()
 
-### within_parameters only used when using certain online footage ( manual footage not yet filmed )
-def within_parameters(min, max):
-    is_within = False
-    if min <= delta_y <= max:
-        if right <= 1250:
-            if (stats[best_i, cv2.CC_STAT_TOP] + stats[best_i, cv2.CC_STAT_HEIGHT]) <= 750:
-                    is_within = True
-    return is_within
-
 def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
@@ -221,17 +207,6 @@ while True:
             delta_y = get_slope(y_old, centroid)
             y_old = centroid
             cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 20, cv2.LINE_8)
-
-            descent_parameters = within_parameters(-25, -0.1)
-            ascent_parameters = within_parameters(0.1, 15)
-
-            if descent_parameters == True:
-                for n in descent_layer:
-                    snn.add_spike(0, n, abs(delta_y))
-
-            elif ascent_parameters == True:
-                for n in ascent_layer:
-                    snn.add_spike(0, n, abs(delta_y))
 
     snn.simulate(1)
     latest = snn.ispikes[-1]
