@@ -92,13 +92,18 @@ with open(video9_labels) as f:
 far_min = 100 # WILL MAKE TESTS
 far_max = 800
 min_move = 1.5
-min_far_area = None # !!
-min_near_area = None # !!
+
+far_areas = []
+min_far_area = 10 # !!
+
+near_areas = []
+min_near_area = 50 # !!
 
 near_y_old = None
 far_y_old = None
 f_idx = 0
 frame_idx = 0
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -119,6 +124,8 @@ while True:
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, abs(near_dy))
         if near_area > min_near_area:
+            print(near_area)
+            near_areas.append(near_area)
             for n in size_near_layer:
                 snn.add_spike(frame_idx, n, near_area)
 
@@ -132,6 +139,8 @@ while True:
             for n in descent_far_layer:
                 snn.add_spike(frame_idx, n, abs(far_dy))
         if far_area > min_far_area:
+            print(far_area)
+            far_areas.append(far_area)
             for n in size_far_layer:
                 snn.add_spike(frame_idx, n, far_area)
 
@@ -141,7 +150,6 @@ while True:
 
 snn.simulate(frame_idx + 5)
 
-### everything below not yet tested 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
     descent_near_ids.append(n.idx)
@@ -151,12 +159,12 @@ for neuron in ascent_near_layer:
     ascent_near_ids.append(neuron.idx)
 
 descent_far_ids = []
-for neuron in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
-    descent_near_ids.append(neuron.idx)
+for neuron in descent_far_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
+    descent_far_ids.append(neuron.idx)
 
 ascent_far_ids = []
-for neuron in ascent_near_layer:
-    ascent_near_ids.append(neuron.idx)
+for neuron in ascent_far_layer:
+    ascent_far_ids.append(neuron.idx)
 
 
 landing_ids = []
@@ -167,7 +175,7 @@ takeoff_ids = []
 for neuron in takeoff_layer:
     takeoff_ids.append(neuron.idx)
 
-W = snn.weight_mat() # before; what started as
+# BELOW NOT YET TESTED / CHANGED
 
 descent_landing_before = W[np.ix_(descent_ids[:8], landing_ids)].mean()
 descent_takeoff_before = W[np.ix_(descent_ids[:2], takeoff_ids)].mean()
