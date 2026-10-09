@@ -34,7 +34,7 @@ with open('video9_labels.csv', "w", newline="") as f:
         current_frame = frame_start
 
         while True:
-            ret, frame = cap.read(video9)
+            ret, frame = cap.read()
             cv2.imshow("VIDEO9", frame)
             current_frame += 1
             if current_frame == frame_end:
