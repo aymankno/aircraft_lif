@@ -66,10 +66,10 @@ touch_gos = 0
 y_old = None
 fired_2 = False
 
-video1 = "video.mp4"
-video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
+video1_online = "video.mp4"
+video2_online = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2_online.mp4"
 #video_3 = "videos/video3.mp4"
-cap = cv2.VideoCapture(video2)
+cap = cv2.VideoCapture(video2_online)
 
 backSub = cv2.createBackgroundSubtractorMOG2()
 
