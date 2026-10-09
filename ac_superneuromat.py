@@ -116,24 +116,25 @@ while True:
         near_dy = get_slope(near_y_old, near_y)
         if near_dy > MIN_MOVE:
             for n in ascent_near_layer:
-                snn.add_spike(frame_idx, n, ascent_near_layer, 10)
+                snn.add_spike(frame_idx, n, ascent_near_layer, abs(near_dy))
         elif near_dy < -MIN_MOVE:
             for n in descent_near_layer:
-                snn.add_spike(frame_idx, n, descent_near_layer, 10)
+                snn.add_spike(frame_idx, n, descent_near_layer, abs(near_dy))
 
     if far_y is not None and far_y_old is not None:
         far_dy = get_slope(far_y_old, far_y)
         if far_dy > MIN_MOVE:
             for n in ascent_far_layer:
-                snn.add_spike(frame_idx, n, ascent_far_layer, 10)
+                snn.add_spike(frame_idx, n, ascent_far_layer, abs(far_dy))
         elif far_dy < -MIN_MOVE:
             for n in descent_far_layer:
-                snn.add_spike(frame_idx, n, descent_far_layer, 10)
+                snn.add_spike(frame_idx, n, descent_far_layer, abs(far_dy))
 
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
 
+snn.simulate(frame_idx + 5)
 ### everything below not yet tested 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
