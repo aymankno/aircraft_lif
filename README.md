@@ -71,6 +71,13 @@ Notes: Output neurons have a large imbalance: 19 takeoff spikes v. 117 landing s
 
 Future changes: Will be filming footage tomorrow at airfield for new test footage at a target site for implementation of aircraft_counter, allowing for more fitting, real training AND testing data, and footage of touch & goes.
 
+### Filmed footage at DKX, created frame_check.py - 10/8/2026
+Filmed footage at Knoxville Downtown Island airport from Island Home Park in Knoxville, Tennessee. 40 movements recorded, exactly 10 touch & goes recorded, and 2 go-arounds recorded. Landings and takeoffs are near-even. While filming, I realized that due to the distance from the camera to the takeoofs, OpenCV will likely not recognize takeoffs as blobs to detect centroids. Therefore, a new feature of the SNN will be implemented: a split set of input neurons for a zoomed in area above the runway where takeoffs fly, and one for a certain portion of the screen where takeoffs land. This also means seperate OpenCV uses. Although not implemented, this is worth noting. Furthermore, created frame_check.py to accurately label and match events to frame number. However, there is no CSV due to bugs during code and limited time available to me.
+
+Notes: Helicopters flying above, not sure how I will count those in the future, worth noting. Go-around will be tricky to train against touch/goes, two go-arounds can be used to train as "nothing" category, also geese? Could crop touch/goes to get more training and testing data in half to just show as landing or takeoff, although likely not needed due to abundance of events. Required counting actually fluctuates airport to airport and for different grant ptojects, planning to send email to DKX airport manager reguarding future projects at airport.
+
+Future changes: Use frame_check or different method to get frame #s for training spikes. Upload some of the filmed videos to YouTube or other file saving platform. Get usable audio and consider using to train model on acoustic signs for helicopters? Further investigate what needs to be counted at airports.
+
 ## Acknowledgements:
 
 ```bibtex
