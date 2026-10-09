@@ -92,8 +92,8 @@ with open(video9_labels) as f:
 far_min = 100 # WILL MAKE TESTS
 far_max = 800
 min_move = 1.5
-min_far_area = None
-min_near_area = None
+min_far_area = None # !!
+min_near_area = None # !!
 
 near_y_old = None
 far_y_old = None
@@ -107,9 +107,8 @@ while True:
     mask = backSub.apply(gray)
     near_mask = mask.copy()
     near_mask[604:755, 974:1239] = 0
-    near_y, near_area = track(near_mask, NEAR_BOX, 1000, 25000)
+    near_y, near_area = track(near_mask, NEAR_BOX, 1000, 25000) ### !!! Change or scale
     far_y, far_area = track(mask, FAR_BOX, far_min, far_max)
-    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(mask)
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
