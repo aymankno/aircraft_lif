@@ -114,19 +114,19 @@ while True:
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
-        if near_dy < -MIN_MOVE:
+        if near_dy > MIN_MOVE:
             for n in ascent_near_layer:
                 snn.add_spike(frame_idx, n, ascent_near_layer, 10)
-        elif near_dy > MIN_MOVE:
+        elif near_dy < -MIN_MOVE:
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, descent_near_layer, 10)
 
     if far_y is not None and far_y_old is not None:
         far_dy = get_slope(far_y_old, far_y)
-        if far_dy < -MIN_MOVE:
+        if far_dy > MIN_MOVE:
             for n in ascent_far_layer:
                 snn.add_spike(frame_idx, n, ascent_far_layer, 10)
-        elif far_dy > MIN_MOVE:
+        elif far_dy < -MIN_MOVE:
             for n in descent_far_layer:
                 snn.add_spike(frame_idx, n, descent_far_layer, 10)
 
