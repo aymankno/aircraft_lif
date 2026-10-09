@@ -241,7 +241,7 @@ while True:
     landing_spiked = latest[landing_ids].any()
     if landing_spiked:
         print("LANDING")
-    cv2.imshow("Aircraft Counter LIF", frame)
+    cv2.imshow("SuperNeuroMAT SNN", frame)
     cv2.waitKey(33)
     frame_num += 1
 
