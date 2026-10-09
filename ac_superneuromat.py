@@ -172,8 +172,8 @@ print()
 
 ### VIDEO TESTING AND TRAINING; SAME VIDEO
 print("VIDEO TESTING BELOW:")
-video2 = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2.mp4"
-cap = cv2.VideoCapture(video2)
+video2_online = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2_online.mp4"
+cap = cv2.VideoCapture(video2_online)
 
 backSub = cv2.createBackgroundSubtractorMOG2()
 
