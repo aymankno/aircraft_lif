@@ -115,26 +115,26 @@ while True:
         near_dy = get_slope(near_y_old, near_y)
         if near_dy > min_move:
             for n in ascent_near_layer:
-                snn.add_spike(frame_idx, n, ascent_near_layer, abs(near_dy))
+                snn.add_spike(frame_idx, n, abs(near_dy))
         elif near_dy < -min_move:
             for n in descent_near_layer:
-                snn.add_spike(frame_idx, n, descent_near_layer, abs(near_dy))
+                snn.add_spike(frame_idx, n, abs(near_dy))
         elif near_area > min_near_area:
             for n in size_near_layer:
-                snn.add_spike(frame_idx, n, size_near_layer, far_area)
+                snn.add_spike(frame_idx, n, far_area)
 
 
     if far_y is not None and far_y_old is not None:
         far_dy = get_slope(far_y_old, far_y)
         if far_dy > min_move:
             for n in ascent_far_layer:
-                snn.add_spike(frame_idx, n, ascent_far_layer, abs(far_dy))
+                snn.add_spike(frame_idx, n, abs(far_dy))
         elif far_dy < -min_move:
             for n in descent_far_layer:
-                snn.add_spike(frame_idx, n, descent_far_layer, abs(far_dy))
+                snn.add_spike(frame_idx, n, abs(far_dy))
         elif far_area > min_far_area:
             for n in size_far_layer:
-                snn.add_spike(frame_idx, n, size_far_layer, far_area)
+                snn.add_spike(frame_idx, n, far_area)
 
     near_y_old = near_y
     far_y_old = far_y
