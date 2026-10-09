@@ -40,9 +40,11 @@ with open('video9_labels.csv', "w", newline="") as f:
             current_frame += 1
             if current_frame == frame_end:
                 cv2.destroyAllWindows()
+                cv2.waitKey(1)
                 break
             elif key == ord("s"):
                 cv2.destroyAllWindows()
+                cv2.waitKey(1)
                 break
 
         event = input("Event was: t/g (g), takeoff (t), or landing (l)? ")
