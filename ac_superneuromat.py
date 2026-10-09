@@ -71,9 +71,6 @@ def get_slope(y_old, y_new):
 def size_changing(centroid_y, centroid_x):
     pass # will write
 
-near_y_old = None
-far_y_old = None
-f_idx = 0
 video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 cap = cv2.VideoCapture(video9)
 backSub = cv2.createBackgroundSubtractorMOG2()
@@ -90,10 +87,14 @@ with open(video9_labels) as f:
             for n in defined_outputs[movement]:
                 snn.add_spike((f_idx + 1), n, 10)
 
-FAR_MIN = None  # will define soon
-FAR_MAX = None # !!!
-MIN_MOVE = None # !!!
+FAR_MIN = 100 # WILL MAKE TESTS
+FAR_MAX = 800
+MIN_MOVE = 1.5
 
+near_y_old = None
+far_y_old = None
+f_idx = 0
+frame_idx = 0
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -114,24 +115,29 @@ while True:
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
         if near_dy < -MIN_MOVE:
-            snn.add_spike(frame_idx, ascent_near_layer, 10)
+            for n in ascent_near_layer:
+                snn.add_spike(frame_idx, n, ascent_near_layer, 10)
         elif near_dy > MIN_MOVE:
-            snn.add_spike(frame_idx, descent_near_layer, 10)
+            for n in descent_near_layer:
+                snn.add_spike(frame_idx, n, descent_near_layer, 10)
 
     if far_y is not None and far_y_old is not None:
         far_dy = get_slope(far_y_old, far_y)
         if far_dy < -MIN_MOVE:
-            snn.add_spike(frame_idx, ascent_near_layer, 10)
+            for n in ascent_far_layer:
+                snn.add_spike(frame_idx, n, ascent_far_layer, 10)
         elif far_dy > MIN_MOVE:
-            snn.add_spike(frame_idx, descent_far_layer, 10)
+            for n in descent_far_layer:
+                snn.add_spike(frame_idx, n, descent_far_layer, 10)
 
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
 
+### everything below not yet tested 
 descent_near_ids = []
-for neuron in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
-    descent_near_ids.append(neuron.idx)
+for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
+    descent_near_ids.append(n.idx)
 
 ascent_near_ids = []
 for neuron in ascent_near_layer:
