@@ -63,7 +63,7 @@ defined_near_inputs = {"takeoff": ascent_near_layer,
                        "landing": descent_near_layer}
 
 Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
-Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses
+Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses 
 snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)              # Sets up stdp based on values above
 
 def get_slope(y_old, y_new):
@@ -173,24 +173,24 @@ takeoff_ids = []
 for neuron in takeoff_layer:
     takeoff_ids.append(neuron.idx)
 
-# BELOW NOT YET TESTED / CHANGED
+W = snn.weight_mat()
 
-descent_landing_before = W[np.ix_(descent_ids[:8], landing_ids)].mean()
-descent_takeoff_before = W[np.ix_(descent_ids[:2], takeoff_ids)].mean()
+descent_landing_before = W[np.ix_(descent_near_ids[:8], landing_ids)].mean()
+descent_takeoff_before = W[np.ix_(descent_near_ids[:2], takeoff_ids)].mean() # will be 0; not mapped
 
-ascent_landing_before = W[np.ix_(ascent_ids[:8], landing_ids)].mean()
-ascent_takeoff_before = W[np.ix_(ascent_ids[:2], takeoff_ids)].mean()
+ascent_landing_before = W[np.ix_(ascent_far_ids[:8], landing_ids)].mean() # 0
+ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
-steps = 15520
+steps = frame_idx
 snn.simulate(time_steps=steps) # simulates full stdp training with teacher spikes
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
-descent_landing_after = W[np.ix_(descent_ids[:8], landing_ids)].mean()
-descent_takeoff_after = W[np.ix_(descent_ids[:2], takeoff_ids)].mean()
+descent_landing_after = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
+descent_takeoff_after = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 
-ascent_landing_after = W[np.ix_(ascent_ids[:8], landing_ids)].mean()
-ascent_takeoff_after = W[np.ix_(ascent_ids[:2], takeoff_ids)].mean()
+ascent_landing_after = W[np.ix_(ascent_far_ids[:8], landing_ids)].mean()
+ascent_takeoff_after = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
 print()
 print("BEFORE:")
@@ -209,7 +209,7 @@ print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_afte
 print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_after - ascent_takeoff_before)
 print()
 
-### SYNTHETIC TESTING BELOW
+### SYNTHETIC TESTING BELOW - NOT YET CHANGED TO VIDEO
 print("TESTING:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 
