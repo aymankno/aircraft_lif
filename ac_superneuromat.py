@@ -152,9 +152,19 @@ while True:
     far_y_old = far_y
     frame_idx += 1
 
+far_dys = np.asarray(far_dys)
+near_dys = np.sarray(near_dys)
+
+pos_far = far_dys[far_dys > 0.1]
+neg_far = far_dys[far_dys < -0.1]
+
+pos_near = near_dys[near_dys > 0.1]
+neg_near = near_dys[near_dys < -0.1]
+
+
 print()
-print(f"FAR deltas: min: {np.min(far_dys)}, max: {np.max(far_dys)}, median (pos): {np.median(far_dys > 0.1)}, mean (pos): {np.mean(far_dys > 0.1)}, median (neg): {np.median(far_dys < 0.1)}, mean (neg): {np.mean(far_dys < 0.1)}")
-print(f"NEAR deltas: min: {np.min(near_dys)}, max: {np.max(near_dys)}, median (pos): {np.median(near_dys > 0.1)}, mean (pos): {np.mean(near_dys > 0.1)}, median (neg): {np.median(near_dys < 0.1)}, mean (neg): {np.mean(near_dys < 0.1)}")
+print(f"FAR deltas: min: {np.min(far_dys)}, max: {np.max(far_dys)}, median (pos): {np.median(pos_far)}, mean (pos): {np.mean(pos_far)}, median (neg): {np.median(neg_far)}, mean (neg): {np.mean(neg_far)}")
+print(f"NEAR deltas: min: {np.min(near_dys)}, max: {np.max(near_dys)}, median (pos): {np.median(pos_near)}, mean (pos): {np.mean(pos_near)}, median (neg): {np.median(neg_near)}, mean (neg): {np.mean(neg_near)}")
 print()
 
 descent_near_ids = []
