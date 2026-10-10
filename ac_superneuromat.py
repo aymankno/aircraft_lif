@@ -90,9 +90,11 @@ with open(video9_labels) as f:
             for n in defined_outputs[movement]:
                 snn.add_spike((f_idx + 1), n, 10)
 
-near_dys = []
-far_dys = []
-min_move = 0.1
+min_far_delta = 0.25 # all footage was with traffic departing away from camera. Will add fix in future to account for operations torwards camera
+min_near_delta = -6.0
+
+max_far_delta = 1.5
+max_near_delta = -1.0
 
 max_near_area = 3000 # ! - may change; test max were very far from median & mean for both
 max_far_area = 325 # !
@@ -117,14 +119,11 @@ while True:
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
-        if near_dy > min_move:
-            near_dys.append(near_dy)
-            print(near_dy)
-            for n in ascent_near_layer:
-                snn.add_spike(frame_idx, n, abs(near_dy))
-        elif near_dy < -min_move:
-            near_dys.append(near_dy)
-            print(near_dy)
+#        if near_dy > min_move:
+#            print(near_dy)                                     # commented out until reversing is implemented (see changelog)
+#            for n in ascent_near_layer:
+#                snn.add_spike(frame_idx, n, abs(near_dy))
+        if min_near_delta < near_dy < max_near_delta:
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, abs(near_dy))
         if near_area > min_near_area:
@@ -134,16 +133,13 @@ while True:
 
     if far_y is not None and far_y_old is not None:
         far_dy = get_slope(far_y_old, far_y)
-        if far_dy > min_move:
-            far_dys.append(far_dy)
-            print(far_dy)
+        if min_far_delta < far_dy < max_far_delta:
             for n in ascent_far_layer:
                 snn.add_spike(frame_idx, n, abs(far_dy))
-        elif far_dy < -min_move:
-            far_dys.append(far_dy)
-            print(far_dy)
-            for n in descent_far_layer:
-                snn.add_spike(frame_idx, n, abs(far_dy))
+#        elif far_dy < -min_move:
+#            print(far_dy)
+#            for n in descent_far_layer:                        # see changelog
+#                snn.add_spike(frame_idx, n, abs(far_dy))
         if far_area > min_far_area:
             for n in size_far_layer:
                 snn.add_spike(frame_idx, n, far_area)
@@ -151,21 +147,6 @@ while True:
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
-
-far_dys = np.asarray(far_dys)
-near_dys = np.asarray(near_dys)
-
-pos_far = far_dys[far_dys > 0.1]
-neg_far = far_dys[far_dys < -0.1]
-
-pos_near = near_dys[near_dys > 0.1]
-neg_near = near_dys[near_dys < -0.1]
-
-
-print()
-print(f"FAR deltas: min: {np.min(far_dys)}, max: {np.max(far_dys)}, median (pos): {np.median(pos_far)}, mean (pos): {np.mean(pos_far)}, median (neg): {np.median(neg_far)}, mean (neg): {np.mean(neg_far)}")
-print(f"NEAR deltas: min: {np.min(near_dys)}, max: {np.max(near_dys)}, median (pos): {np.median(pos_near)}, mean (pos): {np.mean(pos_near)}, median (neg): {np.median(neg_near)}, mean (neg): {np.mean(neg_near)}")
-print()
 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
