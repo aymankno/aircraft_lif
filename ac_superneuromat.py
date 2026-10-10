@@ -153,7 +153,7 @@ while True:
     frame_idx += 1
 
 far_dys = np.asarray(far_dys)
-near_dys = np.sarray(near_dys)
+near_dys = np.asarray(near_dys)
 
 pos_far = far_dys[far_dys > 0.1]
 neg_far = far_dys[far_dys < -0.1]
