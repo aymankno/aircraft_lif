@@ -106,11 +106,13 @@ max_far_area = 325 # !
 min_far_area = 85
 min_near_area = 850
 
-far_grow_shrinks = []
-far_grow_shrink = None
+far_grow_diff_min = 4
+far_grow_diff_max = 20
+far_slope = 11.5 / far_grow_diff_max - far_grow_diff_min
 
-near_grow_shrinks = []
-near_grow_shrink = None
+near_grow_diff_min = 24
+near_grow_diff_max = 150
+near_slope = 11.5 / near_grow_diff_max - near_grow_diff_min
 
 near_y_old = None
 far_y_old = None
@@ -144,8 +146,6 @@ while True:
                 old_near_area = near_area
             diff_near_area = near_area - old_near_area
             old_near_area = near_area
-            near_grow_shrinks.append(abs(diff_near_area))
-            print(diff_near_area)
             if diff_near_area < -1:
                 for n in shrink_near_layer:
                     snn.add_spike(frame_idx, n, abs(diff_near_area))
@@ -169,8 +169,6 @@ while True:
                 old_far_area = far_area
             diff_far_area = far_area - old_far_area
             old_far_area = far_area
-            far_grow_shrinks.append(abs(diff_far_area))
-            print(diff_far_area)
             if diff_far_area < -1:
                 for n in shrink_far_layer:
                     snn.add_spike(frame_idx, n, abs(diff_far_area))
