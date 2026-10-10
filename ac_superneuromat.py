@@ -11,13 +11,17 @@ snn = SNN()
 # 25 neurons each - eyes of SNN (input layers)
 descent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-size_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+
+grow_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+shrink_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
 descent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-size_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
-inputs = descent_near_layer + ascent_near_layer + descent_far_layer + ascent_far_layer + size_near_layer + size_far_layer
+grow_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+shrink_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+
+inputs = descent_near_layer + ascent_near_layer + descent_far_layer + ascent_far_layer + grow_near_layer + shrink_near_layer + grow_far_layer + shrink_far_layer
 
 # 10 neurons each -  decision layers (output layers)
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
@@ -102,6 +106,12 @@ max_far_area = 325 # !
 min_far_area = 85
 min_near_area = 850
 
+far_grow_shrinks = []
+far_grow_shrink = None
+
+near_grow_shrinks = []
+near_grow_shrink = None
+
 near_y_old = None
 far_y_old = None
 frame_idx = 0
@@ -126,9 +136,21 @@ while True:
         if min_near_delta < near_dy < max_near_delta:
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, abs(near_dy))
+
         if near_area > min_near_area:
-            for n in size_near_layer:
-                snn.add_spike(frame_idx, n, (near_area / 68))
+            near_area = near_area / 240
+            if old_near_area is None:
+                old_near_area = near_area
+            diff_near_area = near_area - old_near_area
+            old_near_area = near_area
+            near_grow_shrinks.append(abs(diff_near_area))
+            print(diff_near_area)
+            if diff_near_area < -1:
+                for n in shrink_near_layer:
+                    snn.add_spike(frame_idx, n, abs(diff_near_area))
+            if diff_near_area > 1:
+                for n in grow_near_layer:
+                    snn.add_spike(frame_idx, n, abs(diff_near_area))
 
 
     if far_y is not None and far_y_old is not None:
@@ -140,13 +162,28 @@ while True:
 #            print(far_dy)
 #            for n in descent_far_layer:                        # see changelog 10/9
 #                snn.add_spike(frame_idx, n, abs(far_dy))
+
         if far_area > min_far_area:
-            for n in size_far_layer:
-                snn.add_spike(frame_idx, n, (far_area / 240))
+            far_area = far_area / 240
+            if old_far_area is None:
+                old_far_area = far_area
+            diff_far_area = far_area - old_far_area
+            old_far_area = far_area
+            far_grow_shrinks.append(abs(diff_far_area))
+            print(diff_far_area)
+            if diff_far_area < -1:
+                for n in shrink_far_layer:
+                    snn.add_spike(frame_idx, n, abs(diff_far_area))
+            if diff_far_area > 1:
+                for n in grow_far_layer:
+                    snn.add_spike(frame_idx, n, abs(diff_far_area))
 
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
+
+print(f"far: min: {np.min(far_grow_shrinks)}, max: {np.max(far_grow_shrinks)}, median: {np.median(far_grow_shrinks)}, mean: {np.mean(far_grow_shrinks)}")
+print(f"near: min: {np.min(near_grow_shrinks)}, max: {np.max(near_grow_shrinks)}, median{np.median(near_grow_shrinks)}, mean: {np.mean(near_grow_shrinks)}")
 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
