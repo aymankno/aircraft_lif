@@ -153,8 +153,8 @@ while True:
     frame_idx += 1
 
 print()
-print(f"FAR deltas: min: {np.min(far_dy)}, max: {np.max(far_dy)}, median: {np.median(far_dy)}, mean: {np.mean(far_dy)}")
-print(f"NEAR deltas: min: {np.min(near_dy)}, max: {np.max(near_dy)}, median: {np.median(near_dy)}, mean: {np.mean(near_dy)}")
+print(f"FAR deltas: min: {np.min(far_dys)}, max: {np.max(far_dys)}, median (pos): {np.median(far_dys > 0.1)}, mean (pos): {np.mean(far_dys > 0.1)}, median (neg): {np.median(far_dys < 0.1)}, mean (neg): {np.mean(far_dys < 0.1)}")
+print(f"NEAR deltas: min: {np.min(near_dys)}, max: {np.max(near_dys)}, median (pos): {np.median(near_dys > 0.1)}, mean (pos): {np.mean(near_dys > 0.1)}, median (neg): {np.median(near_dys < 0.1)}, mean (neg): {np.mean(near_dys < 0.1)}")
 print()
 
 descent_near_ids = []
