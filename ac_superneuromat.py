@@ -91,7 +91,7 @@ with open(video9_labels) as f:
                 snn.add_spike((f_idx + 1), n, 10)
 
 min_far_delta = 0.25 # all footage was with traffic departing away from camera. Will add fix in future to account for operations torwards camera
-min_near_delta = -6.0
+min_near_delta = -6.0 # see changelog 10/9
 
 max_far_delta = 1.5
 max_near_delta = -1.0
@@ -138,7 +138,7 @@ while True:
                 snn.add_spike(frame_idx, n, abs(far_dy))
 #        elif far_dy < -min_move:
 #            print(far_dy)
-#            for n in descent_far_layer:                        # see changelog
+#            for n in descent_far_layer:                        # see changelog 10/9
 #                snn.add_spike(frame_idx, n, abs(far_dy))
         if far_area > min_far_area:
             for n in size_far_layer:
