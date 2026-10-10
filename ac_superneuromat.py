@@ -77,6 +77,7 @@ video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 cap = cv2.VideoCapture(video9)
 backSub = cv2.createBackgroundSubtractorMOG2()
 
+f_idx = 0
 with open(video9_labels) as f:
     next(f)
     for row in f:                                    # Teacher Spike:
@@ -89,16 +90,18 @@ with open(video9_labels) as f:
             for n in defined_outputs[movement]:
                 snn.add_spike((f_idx + 1), n, 10)
 
-far_min = 100 # WILL MAKE TESTS
-far_max = 800
-min_move = 1.5
+near_dys = []
+far_dys = []
+min_move = None
 
-min_far_area = 90 # !!
-min_near_area = 1000 # !!
+max_near_area = 3000 # ! - may change; test max were very far from median & mean for both
+max_far_area = 325 # !
+
+min_far_area = 85
+min_near_area = 850
 
 near_y_old = None
 far_y_old = None
-f_idx = 0
 frame_idx = 0
 
 while True:
@@ -115,9 +118,13 @@ while True:
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
         if near_dy > min_move:
+            near_dys.append(near_dy)
+            print(near_dy)
             for n in ascent_near_layer:
                 snn.add_spike(frame_idx, n, abs(near_dy))
         elif near_dy < -min_move:
+            near_dys.append(near_dy)
+            print(near_dy)
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, abs(near_dy))
         if near_area > min_near_area:
@@ -128,9 +135,13 @@ while True:
     if far_y is not None and far_y_old is not None:
         far_dy = get_slope(far_y_old, far_y)
         if far_dy > min_move:
+            far_dys.append(far_dy)
+            print(far_dy)
             for n in ascent_far_layer:
                 snn.add_spike(frame_idx, n, abs(far_dy))
         elif far_dy < -min_move:
+            far_dys.append(far_dy)
+            print(far_dy)
             for n in descent_far_layer:
                 snn.add_spike(frame_idx, n, abs(far_dy))
         if far_area > min_far_area:
@@ -140,6 +151,11 @@ while True:
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
+
+print()
+print(f"FAR deltas: min: {np.min(far_dy)}, max: {np.max(far_dy)}, median: {np.median(far_dy)}, mean: {np.mean(far_dy)}")
+print(f"NEAR deltas: min: {np.min(near_dy)}, max: {np.max(near_dy)}, median: {np.median(near_dy)}, mean: {np.mean(near_dy)}")
+print()
 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
