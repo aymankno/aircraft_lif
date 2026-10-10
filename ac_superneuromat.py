@@ -128,7 +128,7 @@ while True:
                 snn.add_spike(frame_idx, n, abs(near_dy))
         if near_area > min_near_area:
             for n in size_near_layer:
-                snn.add_spike(frame_idx, n, near_area)
+                snn.add_spike(frame_idx, n, (near_area / 68))
 
 
     if far_y is not None and far_y_old is not None:
@@ -142,7 +142,7 @@ while True:
 #                snn.add_spike(frame_idx, n, abs(far_dy))
         if far_area > min_far_area:
             for n in size_far_layer:
-                snn.add_spike(frame_idx, n, far_area)
+                snn.add_spike(frame_idx, n, (far_area / 240))
 
     near_y_old = near_y
     far_y_old = far_y
