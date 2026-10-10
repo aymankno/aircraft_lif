@@ -92,7 +92,7 @@ with open(video9_labels) as f:
 
 near_dys = []
 far_dys = []
-min_move = None
+min_move = 0.1
 
 max_near_area = 3000 # ! - may change; test max were very far from median & mean for both
 max_far_area = 325 # !
