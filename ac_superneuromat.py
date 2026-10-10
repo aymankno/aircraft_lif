@@ -93,11 +93,8 @@ far_min = 100 # WILL MAKE TESTS
 far_max = 800
 min_move = 1.5
 
-far_areas = []
-min_far_area = 10 # !!
-
-near_areas = []
-min_near_area = 50 # !!
+min_far_area = 90 # !!
+min_near_area = 1000 # !!
 
 near_y_old = None
 far_y_old = None
@@ -124,8 +121,6 @@ while True:
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, abs(near_dy))
         if near_area > min_near_area:
-            print(near_area)
-            near_areas.append(near_area)
             for n in size_near_layer:
                 snn.add_spike(frame_idx, n, near_area)
 
@@ -139,17 +134,12 @@ while True:
             for n in descent_far_layer:
                 snn.add_spike(frame_idx, n, abs(far_dy))
         if far_area > min_far_area:
-            print(far_area)
-            far_areas.append(far_area)
             for n in size_far_layer:
                 snn.add_spike(frame_idx, n, far_area)
 
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
-
-print(f"FAR: min: {np.min(far_areas)}, max: {np.max(far_areas)}, median: {np.median(far_areas)}, mean: {np.mean(far_areas)}")
-print(f"NEAR: min: {np.min(near_areas)}, max: {np.max(near_areas)}, median: {np.median(near_areas)}, mean: {np.mean(near_areas)}")
 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
