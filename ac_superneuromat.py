@@ -112,8 +112,8 @@ while True:
     mask = backSub.apply(gray)
     near_mask = mask.copy()
     near_mask[604:755, 974:1239] = 0
-    near_y, near_area = track(near_mask, NEAR_BOX, 1000, 25000) ### !!! Change or scale
-    far_y, far_area = track(mask, FAR_BOX, far_min, far_max)
+    near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
+    far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
