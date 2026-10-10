@@ -114,6 +114,8 @@ near_grow_shrink = None
 
 near_y_old = None
 far_y_old = None
+old_near_area = None
+old_far_area = None
 frame_idx = 0
 
 while True:
