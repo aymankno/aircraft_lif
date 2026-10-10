@@ -148,7 +148,8 @@ while True:
     far_y_old = far_y
     frame_idx += 1
 
-snn.simulate(frame_idx + 5)
+print(f"FAR: min: {np.min(far_areas)}, max: {np.max(far_areas)}, median: {np.median(far_areas)}, mean: {np.mean(far_areas)}")
+print(f"NEAR: min: {np.min(near_areas)}, max: {np.max(near_areas)}, median: {np.median(near_areas)}, mean: {np.mean(near_areas)}")
 
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
