@@ -140,7 +140,6 @@ while True:
                 snn.add_spike(frame_idx, n, abs(near_dy))
 
         if near_area > min_near_area:
-            near_area = near_area / 240
             if old_near_area is None:
                 old_near_area = near_area
             diff_near_area = near_area - old_near_area
@@ -166,7 +165,6 @@ while True:
 #                snn.add_spike(frame_idx, n, abs(far_dy))
 
         if far_area > min_far_area:
-            far_area = far_area / 240
             if old_far_area is None:
                 old_far_area = far_area
             diff_far_area = far_area - old_far_area
