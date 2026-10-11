@@ -7,8 +7,8 @@ V2 = ac_superneuromat.py - SuperNeuroMAT spiking neural network
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
-Latest changes (10/9/2026):
-Finished the full training loop on video filmed at DKX and added additional input layer: size, although likely will be removed and replaced by growing/shrinking, width, and aircraft_classification related input layers. Added a split-screen mechanism since OpenCV could not detect distant aircraft taking off; two seperate blobs detected at once in two focus zones. Additonally, for input layers, considered time-between-zone spikes for go-around, as this is not only how a human "counts" a touch & go, it also will prevent miscounted go-arounds.
+Latest changes (10/9/2026 - 10/10/2026):
+Finished the full training loop on video filmed at DKX and added additional input layesr: growing/shrinking layers to prepare for a reverse function of traffic (traffic moving torwards or away from the camera), and considered aircraft_classification related layers. Added a split-screen mechanism since OpenCV could not detect distant aircraft taking off; two seperate blobs detected at once in two focus zones. Additonally, for input layers, considered time-between-zone spikes for go-around, as this is not only how a human "counts" a touch & go, it also will prevent miscounted go-arounds. 
 
 ## License
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
