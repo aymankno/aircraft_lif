@@ -288,6 +288,11 @@ shrink_far_ids = []
 for neuron in shrink_far_layer:
     shrink_far_ids.append(neuron.idx)
 
+# Memory inputs:
+vanish_ids = []
+for neuron in vanished_layer:
+    vanish_ids.append(neuron.idx)
+
 # Outputs
 landing_ids = []
 for neuron in landing_layer:
@@ -297,6 +302,10 @@ takeoff_ids = []
 for neuron in takeoff_layer:
     takeoff_ids.append(neuron.idx)
 
+touch_go_ids = []
+for neuron in touch_go_layer:
+    touch_go_ids.append(neuron.idx)
+
 W = snn.weight_mat()
 
 descent_landing_before = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
@@ -304,6 +313,8 @@ descent_takeoff_before = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 
 ascent_landing_before = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
 ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
+
+vanish_touch_go_before = W[np.ix_(vanish_ids, touch_go_ids)].mean()
 
 steps = frame_idx + 5
 snn.simulate(time_steps=steps) # simulates full stdp training with teacher spikes
@@ -315,6 +326,8 @@ descent_takeoff_after = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 
 ascent_landing_after = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
 ascent_takeoff_after = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
+
+vanish_touch_go_after = W[np.ix_(vanish_ids, touch_go_ids)].mean()
 
 print()
 print("BEFORE:")
