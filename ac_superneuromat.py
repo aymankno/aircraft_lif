@@ -320,6 +320,7 @@ vanish_touch_go_before = W[np.ix_(vanish_ids, touch_go_ids)].mean()
 
 steps = frame_idx
 snn.simulate(time_steps=steps) # simulates full stdp training with teacher spikes
+print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
