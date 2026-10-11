@@ -243,6 +243,7 @@ while True:
         for n in recent_descent_layer:
             snn.add_spike(frame_idx, n, 13)
     if frames_since_vanish is not None:
+        frames_since_vanish += 1
         sec = int(frames_since_vanish // fps)
         if sec < len(vanished_layer):
             snn.add_spike(frame_idx, vanished_layer[sec], 13) # spikes only the neuron for sec
