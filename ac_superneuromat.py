@@ -74,9 +74,6 @@ def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
 
-def size_changing(centroid_y, centroid_x):
-    pass # will write
-
 video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 cap = cv2.VideoCapture(video9)
 backSub = cv2.createBackgroundSubtractorMOG2()
@@ -146,12 +143,15 @@ while True:
                 old_near_area = near_area
             diff_near_area = near_area - old_near_area
             old_near_area = near_area
-            if diff_near_area < -1:
-                for n in shrink_near_layer:
-                    snn.add_spike(frame_idx, n, abs(diff_near_area))
-            if diff_near_area > 1:
+            if diff_near_area > near_diff_min:
+                value = 1 + (diff_near_area - near_diff_min) * near_slope
                 for n in grow_near_layer:
-                    snn.add_spike(frame_idx, n, abs(diff_near_area))
+                    snn.add_spike(frame_idx, n, value)
+            elif diff_near_area < -near_diff_min:
+                value = 1 + (-diff_near_area - near_diff_min) * near_slope
+                for n in shrink_near_layer:
+                    snn.add_spike(frame_idx, n, value)
+
 
 
     if far_y is not None and far_y_old is not None:
@@ -169,12 +169,14 @@ while True:
                 old_far_area = far_area
             diff_far_area = far_area - old_far_area
             old_far_area = far_area
-            if diff_far_area < -1:
-                for n in shrink_far_layer:
-                    snn.add_spike(frame_idx, n, abs(diff_far_area))
-            if diff_far_area > 1:
+            if diff_far_area > far_diff_min:
+                value = 1 + (diff_far_area - far_diff_min) * far_slope
                 for n in grow_far_layer:
-                    snn.add_spike(frame_idx, n, abs(diff_far_area))
+                    snn.add_spike(frame_idx, n, value)
+            elif diff_far_area < -far_diff_min:
+                value = 1 + (-diff_far_area - far_diff_min) * far_slope
+                for n in shrink_far_layer:
+                    snn.add_spike(frame_idx, n, value)
 
     near_y_old = near_y
     far_y_old = far_y
