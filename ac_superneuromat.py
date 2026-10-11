@@ -121,8 +121,8 @@ min_descent_frames = 5         # descent frames in a row before counted (for noi
 vanished_min = 5               # frames it doesn't see aircraft before considered vanished
 
 
-frames_since_descent = 0
-frames_since_vanish = 0
+frames_since_descent = None
+frames_since_vanish = None
 descent_streak = 0
 frames_gone = None
 was_descending = False
