@@ -101,7 +101,7 @@ with open(video9_labels) as f:
             continue
         start, end, area, movement, direction = [x.strip() for x in row.split(',')]
         start, end = int(start), int(end)
-        for f_idx in range(start, end, 10):
+        for f_idx in range(start, end, 11):
             for n in defined_outputs[movement]:
                 snn.add_spike((f_idx + 1), n, 9)
 
