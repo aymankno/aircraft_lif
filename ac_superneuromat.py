@@ -180,9 +180,6 @@ while True:
     far_y_old = far_y
     frame_idx += 1
 
-print(f"far: min: {np.min(far_grow_shrinks)}, max: {np.max(far_grow_shrinks)}, median: {np.median(far_grow_shrinks)}, mean: {np.mean(far_grow_shrinks)}")
-print(f"near: min: {np.min(near_grow_shrinks)}, max: {np.max(near_grow_shrinks)}, median{np.median(near_grow_shrinks)}, mean: {np.mean(near_grow_shrinks)}")
-
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
     descent_near_ids.append(n.idx)
