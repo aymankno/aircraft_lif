@@ -21,8 +21,8 @@ ascent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25
 grow_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 shrink_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
-recent_descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(3)]
-vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(3)] # 0.006 * 3 = 0.018, less than 0.1 leak.
+recent_descent_layer = [snn.create_neuron(threshold=0.5)]                           # one neuron because recent_descent is yes/no
+vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(20)]    # 20 neurons to make the layer into a timer, one neuron / sec
 
 learning_inputs = descent_near_layer + ascent_near_layer +\
          descent_far_layer + ascent_far_layer + grow_near_layer + shrink_near_layer +\
@@ -127,12 +127,9 @@ near_slope = 0.0913
 
 fps = cap.get(cv2.CAP_PROP_FPS)
 descent_window = int(18 * fps) # how long recent_descent until leaked to 0
-vanish_window = int(18 * fps)  # how long vanish until leak to 0
 min_descent_frames = 5         # descent frames in a row before counted (for noise)
 vanished_unseen_min = 5        # frames it doesn't see aircraft before considered vanished
 vanished_seen_min = 5          # frames it sees an aircraft before considering aircraft unvanished
-
-
 
 frames_since_descent = None
 frames_since_vanish = None
@@ -222,7 +219,9 @@ while True:
     if frames_since_descent is not None:
         frames_since_descent += 1
     if frames_since_vanish is not None:
-        frames_since_vanish += 1
+        sec = int(frames_since_vanish // fps)
+        if sec < len(vanished_layer):
+            snn.add_spike(frame_idx, vanished_layer[sec], 13) # 13 > thresh
 
     if descent_fired:
         descent_streak += 1
@@ -243,9 +242,10 @@ while True:
     if frames_since_descent is not None and frames_since_descent < descent_window:
         for n in recent_descent_layer:
             snn.add_spike(frame_idx, n, 13)
-    if frames_since_vanish is not None and frames_since_vanish < vanish_window:
-        for n in vanished_layer:
-            snn.add_spike(frame_idx, n, 13)
+    if frames_since_vanish is not None:
+        sec = int(frames_since_vanish // fps)
+        if sec < len(vanished_layer):
+            snn.add_spike(frame_idx, vanished_layer[sec], 13) # spikes only the neuron for sec
 
     if near_y is None:
         old_near_area = None
