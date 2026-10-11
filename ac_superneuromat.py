@@ -199,38 +199,38 @@ while True:
 
         plane_seen = near_y is not None or far_y is not None
 
-        if frames_since_descent is not None:
-            frames_since_descent += 1
-        if frames_since_vanish is not None:
-            frames_since_vanish += 1
+    if frames_since_descent is not None:
+        frames_since_descent += 1
+    if frames_since_vanish is not None:
+        frames_since_vanish += 1
 
-        if descent_fired:
-            descent_streak += 1
-        else:
-            descent_streak = 0
-        if descent_streak >= min_descent_frames:
-            frames_since_descent = 0
+    if descent_fired:
+        descent_streak += 1
+    else:
+        descent_streak = 0
+    if descent_streak >= min_descent_frames:
+        frames_since_descent = 0
 
-        if plane_seen:
-            frames_gone = None
-            was_descending = frames_since_descent is not None and frames_since_descent <= 3
-        elif was_descending:
-            frames_gone = 0 if frames_gone is None else frames_gone + 1
-            if frames_gone >= vanished_min:
-                frames_since_vanish = 0
-                was_descending = False
+    if plane_seen:
+        frames_gone = None
+        was_descending = frames_since_descent is not None and frames_since_descent <= 3
+    elif was_descending:
+        frames_gone = 0 if frames_gone is None else frames_gone + 1
+        if frames_gone >= vanished_min:
+            frames_since_vanish = 0
+            was_descending = False
 
-        if frames_since_descent is not None and frames_since_descent < descent_window:
-            for n in recent_descent_layer:
-                snn.add_spike(frame_idx, n, 13)
-        if frames_since_vanish is not None and frames_since_vanish < vanish_window:
-            for n in vanished_layer:
-                snn.add_spike(frame_idx, n, 13)
+    if frames_since_descent is not None and frames_since_descent < descent_window:
+        for n in recent_descent_layer:
+            snn.add_spike(frame_idx, n, 13)
+    if frames_since_vanish is not None and frames_since_vanish < vanish_window:
+        for n in vanished_layer:
+            snn.add_spike(frame_idx, n, 13)
 
-        if near_y is not None:
-            old_near_area = None
-        if far_y is None:
-            old_far_area = None
+    if near_y is not None:
+        old_near_area = None
+    if far_y is None:
+        old_far_area = None
 
     near_y_old = near_y
     far_y_old = far_y
