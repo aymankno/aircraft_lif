@@ -344,11 +344,11 @@ print()
 
 
 print("AFTER:")
-print("Descent-landing:", descent_landing_after, "DIFFERENCE", descent_landing_after - descent_landing_before)
-print("Descent-takeoff:", descent_takeoff_after, "DIFFERENCE", descent_takeoff_after - descent_takeoff_before)
-print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_after - ascent_landing_before)
-print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_after - ascent_takeoff_before)
-print("Vanish-touch/go:", vanish_touch_go_after, "DIFFERENCE", vanish_touch_go_after - vanish_touch_go_before)
+print("Descent-landing:", descent_landing_after, "percent change:", ((descent_landing_after - descent_landing_before) / descent_landing_before) * 100)
+print("Descent-takeoff:", descent_takeoff_after, "percent change:", ((descent_takeoff_after - descent_takeoff_before) / descent_takeoff_before) * 100)
+print("Ascent-landing:", ascent_landing_after, "percent change:", ((ascent_landing_after - ascent_landing_before) / ascent_landing_before) * 100)
+print("Ascent-takeoff:", ascent_takeoff_after, "percent change:", ((ascent_takeoff_after - ascent_takeoff_before) / ascent_takeoff_before) * 100)
+print("Vanish-touch/go:", vanish_touch_go_after, "percent change:", ((vanish_touch_go_after - vanish_touch_go_before) / vanish_touch_go_before) * 100)
 print()
 
 ### SYNTHETIC TESTING BELOW - NOT YET CHANGED TO VIDEO
