@@ -21,6 +21,9 @@ ascent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25
 grow_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 shrink_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
+recent_descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+
 inputs = descent_near_layer + ascent_near_layer + descent_far_layer + ascent_far_layer + grow_near_layer + shrink_near_layer + grow_far_layer + shrink_far_layer
 
 # 10 neurons each -  decision layers (output layers)
@@ -111,6 +114,19 @@ near_diff_min = 24
 near_diff_max = 150
 near_slope = 0.0913
 
+fps = cap.get(cv2.CAP_PROP_FPS)
+descent_window = int(18 * fps) # how long recent_descent until leaked to 0
+vanish_window = int(18 * fps)  # how long vanish until leak to 0
+min_descent_frames = 5         # descent frames in a row before counted (for noise)
+vanished_min = 5               # frames it doesn't see aircraft before considered vanished
+
+
+frames_since_descent = 0
+frames_since_vanish = 0
+descent_streak = 0
+frames_gone = None
+was_descending = False
+
 near_y_old = None
 far_y_old = None
 old_near_area = None
@@ -127,6 +143,8 @@ while True:
     near_mask[604:755, 974:1239] = 0
     near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
     far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
+
+    descent_fired = False
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
@@ -135,6 +153,7 @@ while True:
 #            for n in ascent_near_layer:
 #                snn.add_spike(frame_idx, n, abs(near_dy))
         if min_near_delta < near_dy < max_near_delta:
+            descent_fired = True
             for n in descent_near_layer:
                 snn.add_spike(frame_idx, n, abs(near_dy))
 
@@ -177,6 +196,41 @@ while True:
                 value = 1 + (-diff_far_area - far_diff_min) * far_slope
                 for n in shrink_far_layer:
                     snn.add_spike(frame_idx, n, value)
+
+        plane_seen = near_y is not None or far_y is not None
+
+        if frames_since_descent is not None:
+            frames_since_descent += 1
+        if frames_since_vanish is not None:
+            frames_since_vanish += 1
+
+        if descent_fired:
+            descent_streak += 1
+        else:
+            descent_streak = 0
+        if descent_streak >= min_descent_frames:
+            frames_since_descent = 0
+
+        if plane_seen:
+            frames_gone = None
+            was_descending = frames_since_descent is not None and frames_since_descent <= 3
+        elif was_descending:
+            frames_gone = 0 if frames_gone is None else frames_gone + 1
+            if frames_gone >= vanished_min:
+                frames_since_vanish = 0
+                was_descending = False
+
+        if frames_since_descent is not None and frames_since_descent < descent_window:
+            for n in recent_descent_layer:
+                snn.add_spike(frame_idx, n, 13)
+        if frames_since_vanish is not None and frames_since_vanish < vanish_window:
+            for n in vanished_layer:
+                snn.add_spike(frame_idx, n, 13)
+
+        if near_y is not None:
+            old_near_area = None
+        if far_y is None:
+            old_far_area = None
 
     near_y_old = near_y
     far_y_old = far_y
