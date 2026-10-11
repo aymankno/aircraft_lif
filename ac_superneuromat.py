@@ -254,6 +254,8 @@ while True:
     far_y_old = far_y
     frame_idx += 1
 
+print(frame_idx)
+
 # Near
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
@@ -335,6 +337,7 @@ print("Descent-landing:", descent_landing_before)
 print("Descent-takeoff:", descent_takeoff_before)
 print("Ascent-landing:", ascent_landing_before)
 print("Ascent-takeoff:", ascent_takeoff_before)
+print("Vanish-touch/go:", vanish_touch_go_before)
 
 print()
 
@@ -344,6 +347,7 @@ print("Descent-landing:", descent_landing_after, "DIFFERENCE", descent_landing_a
 print("Descent-takeoff:", descent_takeoff_after, "DIFFERENCE", descent_takeoff_after - descent_takeoff_before)
 print("Ascent-landing:", ascent_landing_after, "DIFFERENCE", ascent_landing_after - ascent_landing_before)
 print("Ascent-takeoff:", ascent_takeoff_after, "DIFFERENCE", ascent_takeoff_after - ascent_takeoff_before)
+print("Vanish-touch/go:", vanish_touch_go_after, "DIFFERENCE", vanish_touch_go_after - vanish_touch_go_before)
 print()
 
 ### SYNTHETIC TESTING BELOW - NOT YET CHANGED TO VIDEO
