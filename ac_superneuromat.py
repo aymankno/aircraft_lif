@@ -318,7 +318,7 @@ ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
 vanish_touch_go_before = W[np.ix_(vanish_ids, touch_go_ids)].mean()
 
-steps = frame_idx + 5
+steps = frame_idx
 snn.simulate(time_steps=steps) # simulates full stdp training with teacher spikes
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
