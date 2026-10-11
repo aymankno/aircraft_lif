@@ -21,12 +21,14 @@ ascent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25
 grow_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 shrink_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
-recent_descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+recent_descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(3)]
+vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(3)] # 0.006 * 3 = 0.018, less than 0.1 leak.
 
-inputs = descent_near_layer + ascent_near_layer +\
+learning_inputs = descent_near_layer + ascent_near_layer +\
          descent_far_layer + ascent_far_layer + grow_near_layer + shrink_near_layer +\
-         grow_far_layer + shrink_far_layer + recent_descent_layer + vanished_layer
+         grow_far_layer + shrink_far_layer
+
+memory_inputs = recent_descent_layer + vanished_layer
 
 # 10 neurons each -  decision layers (output layers)
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
@@ -35,8 +37,16 @@ touch_go_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=1
 
 outputs = landing_layer + takeoff_layer + touch_go_layer
 
-for pre in inputs:                                       # Makes synapses to connect everything together
+for pre in learning_inputs:                                       # Makes synapses to connect everything together
     for post in outputs:
+        snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
+
+for pre in recent_descent_layer:
+    for post in takeoff_layer:
+        snn.create_synapse(pre, post, weight=-0.033, stdp_enabled=False) # weight subject to change
+
+for pre in vanished_layer:
+    for post in touch_go_layer:
         snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
 
 NEAR_BOX = (468, 1, 967, 747)
@@ -83,18 +93,17 @@ video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 cap = cv2.VideoCapture(video9)
 backSub = cv2.createBackgroundSubtractorMOG2()
 
-f_idx = 0
 with open(video9_labels) as f:
     next(f)
     for row in f:                                    # Teacher Spike:
         row = row.strip()
         if not row:
             continue
-        start, end, area, movement, direction = row.split(',')
+        start, end, area, movement, direction = [x.strip() for x in row.split(',')]
         start, end = int(start), int(end)
         for f_idx in range(start, end, 10):
             for n in defined_outputs[movement]:
-                snn.add_spike((f_idx + 1), n, 10)
+                snn.add_spike((f_idx + 1), n, 9)
 
 min_far_delta = 0.25 # all footage was with traffic departing away from camera. Will add fix in future to account for operations torwards camera
 min_near_delta = -6.0 # see changelog 10/9
@@ -280,7 +289,7 @@ descent_takeoff_before = W[np.ix_(descent_near_ids[:2], takeoff_ids)].mean() # w
 ascent_landing_before = W[np.ix_(ascent_far_ids[:8], landing_ids)].mean() # 0
 ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
-steps = frame_idx
+steps = frame_idx + 5
 snn.simulate(time_steps=steps) # simulates full stdp training with teacher spikes
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
