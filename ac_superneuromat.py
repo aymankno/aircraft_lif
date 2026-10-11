@@ -24,7 +24,9 @@ shrink_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25
 recent_descent_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
-inputs = descent_near_layer + ascent_near_layer + descent_far_layer + ascent_far_layer + grow_near_layer + shrink_near_layer + grow_far_layer + shrink_far_layer
+inputs = descent_near_layer + ascent_near_layer +\
+         descent_far_layer + ascent_far_layer + grow_near_layer + shrink_near_layer +\
+         grow_far_layer + shrink_far_layer + recent_descent_layer + vanished_layer
 
 # 10 neurons each -  decision layers (output layers)
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
@@ -88,7 +90,7 @@ with open(video9_labels) as f:
         row = row.strip()
         if not row:
             continue
-        start, end, area, movement = row.split(',')
+        start, end, area, movement, direction = row.split(',')
         start, end = int(start), int(end)
         for f_idx in range(start, end, 10):
             for n in defined_outputs[movement]:
