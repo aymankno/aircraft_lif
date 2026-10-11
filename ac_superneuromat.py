@@ -106,13 +106,13 @@ max_far_area = 325 # !
 min_far_area = 85
 min_near_area = 850
 
-far_grow_diff_min = 4
-far_grow_diff_max = 20
-far_slope = 11.5 / far_grow_diff_max - far_grow_diff_min
+far_diff_min = 4 # min change to count as a change & spike
+far_diff_max = 20 # everything above max counts as same; fires whole layer
+far_slope = 0.719
 
-near_grow_diff_min = 24
-near_grow_diff_max = 150
-near_slope = 11.5 / near_grow_diff_max - near_grow_diff_min
+near_diff_min = 24
+near_diff_max = 150
+near_slope = 0.0913
 
 near_y_old = None
 far_y_old = None
