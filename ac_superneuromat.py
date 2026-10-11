@@ -197,7 +197,7 @@ while True:
                 for n in shrink_far_layer:
                     snn.add_spike(frame_idx, n, value)
 
-        plane_seen = near_y is not None or far_y is not None
+    plane_seen = near_y is not None or far_y is not None
 
     if frames_since_descent is not None:
         frames_since_descent += 1
@@ -227,7 +227,7 @@ while True:
         for n in vanished_layer:
             snn.add_spike(frame_idx, n, 13)
 
-    if near_y is not None:
+    if near_y is None:
         old_near_area = None
     if far_y is None:
         old_far_area = None
