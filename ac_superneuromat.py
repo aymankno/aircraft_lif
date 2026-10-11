@@ -43,7 +43,7 @@ for pre in learning_inputs:                                       # Makes synaps
 
 for pre in recent_descent_layer:
     for post in takeoff_layer:
-        snn.create_synapse(pre, post, weight=-0.033, stdp_enabled=False) # weight subject to change
+        snn.create_synapse(pre, post, weight=-0.1, stdp_enabled=False)
 
 for pre in vanished_layer:
     for post in touch_go_layer:
@@ -219,9 +219,7 @@ while True:
     if frames_since_descent is not None:
         frames_since_descent += 1
     if frames_since_vanish is not None:
-        sec = int(frames_since_vanish // fps)
-        if sec < len(vanished_layer):
-            snn.add_spike(frame_idx, vanished_layer[sec], 13) # 13 > thresh
+        frames_since_vanish += 1
 
     if descent_fired:
         descent_streak += 1
@@ -243,7 +241,6 @@ while True:
         for n in recent_descent_layer:
             snn.add_spike(frame_idx, n, 13)
     if frames_since_vanish is not None:
-        frames_since_vanish += 1
         sec = int(frames_since_vanish // fps)
         if sec < len(vanished_layer):
             snn.add_spike(frame_idx, vanished_layer[sec], 13) # spikes only the neuron for sec
@@ -284,10 +281,10 @@ for neuron in takeoff_layer:
 
 W = snn.weight_mat()
 
-descent_landing_before = W[np.ix_(descent_near_ids[:8], landing_ids)].mean()
-descent_takeoff_before = W[np.ix_(descent_near_ids[:2], takeoff_ids)].mean() # will be 0; not mapped
+descent_landing_before = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
+descent_takeoff_before = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean() # will be 0; not mapped
 
-ascent_landing_before = W[np.ix_(ascent_far_ids[:8], landing_ids)].mean() # 0
+ascent_landing_before = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean() # 0
 ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
 steps = frame_idx + 5
@@ -298,7 +295,7 @@ W = snn.weight_mat() # saves the NEW weights after training from training spikes
 descent_landing_after = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
 descent_takeoff_after = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 
-ascent_landing_after = W[np.ix_(ascent_far_ids[:8], landing_ids)].mean()
+ascent_landing_after = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
 ascent_takeoff_after = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
 print()
