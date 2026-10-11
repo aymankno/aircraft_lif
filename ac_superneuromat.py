@@ -120,7 +120,9 @@ fps = cap.get(cv2.CAP_PROP_FPS)
 descent_window = int(18 * fps) # how long recent_descent until leaked to 0
 vanish_window = int(18 * fps)  # how long vanish until leak to 0
 min_descent_frames = 5         # descent frames in a row before counted (for noise)
-vanished_min = 5               # frames it doesn't see aircraft before considered vanished
+vanished_unseen_min = 5        # frames it doesn't see aircraft before considered vanished
+vanished_seen_min = 5          # frames it sees an aircraft before considering aircraft unvanished
+
 
 
 frames_since_descent = None
@@ -128,6 +130,7 @@ frames_since_vanish = None
 descent_streak = 0
 frames_gone = None
 was_descending = False
+frames_seen = 0
 
 near_y_old = None
 far_y_old = None
@@ -199,7 +202,13 @@ while True:
                 for n in shrink_far_layer:
                     snn.add_spike(frame_idx, n, value)
 
-    plane_seen = near_y is not None or far_y is not None
+    if near_y is not None or far_y is not None:
+        frames_seen += 1
+    else:
+        frames_seen = 0
+
+    plane_seen = frames_seen >= vanished_seen_min
+    plane_gone = frames_seen == 0
 
     if frames_since_descent is not None:
         frames_since_descent += 1
@@ -216,9 +225,9 @@ while True:
     if plane_seen:
         frames_gone = None
         was_descending = frames_since_descent is not None and frames_since_descent <= 3
-    elif was_descending:
+    elif plane_gone and was_descending:
         frames_gone = 0 if frames_gone is None else frames_gone + 1
-        if frames_gone >= vanished_min:
+        if frames_gone >= vanished_unseen_min:
             frames_since_vanish = 0
             was_descending = False
 
