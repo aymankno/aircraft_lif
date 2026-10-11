@@ -85,6 +85,13 @@ Notes: Fundamental change from synthetic to video training required a lot of rep
 
 Future changes: Write a test on a different video filmed, determine if a size neuron is worth keeping or if a filter is enough, add growing/shrinking for "reverse" traffic (trained/tested on videos reversed?), consider implentation of aircraft classification in the future, needed for large grants. Consider outputs as popular aircraft make/model and then automatically classify, train on the models themselves, perhaps tail # capturing? Upload video to YouTube.
 
+### Replaced size layers with growing & shrinking layers for both near and far zones, notes organized - 10/10/2026
+Realized that under current architecture, size layers only provided insight on if a blob was detected or not due to lack of scaling of sizes & lack of variety. Furthermore, size neurons had little influence now and would likely have not have any influence in the future on the accuracy on the model. Therefore, replaced size neurons with growing & shrinking neurons to prepare for a reverse function in the future. Matched the input neurons to inputs from video, added a "direction" column to the csv for future use when training for away or torwards the camera to reverse traffic. Not yet tested due to the long compile time of the code, so likely prone to errors. Reorganized notes in code, changed to be more up-to-date, and began considering the additon of a time_since or touch_go dedicated input layer, although not yet implemented. Leaning torwards a layer "time_since_descent" that charges on descent with a 15 second leak to zero, serving as a roadblock for ascents. When ascents plan to fire, if time_since_descent still has charge, it gets charged by the ascent squared, triggering spikes and thus spikes in touch_go neuron. This architecture is not yet implemented nor tested.
+
+Notes: Size layers have no purpose; only serve as an is_blob function. Could scale to make it usable for the model, but still would have very little influence on takeoffs & landings and could cause overfitting due to the constant direction of traffic in footage filmed. Changing size layer to a growing/shrinking layer, as discussed in last changelog update, to prepare for a reverse. Fully implemented growing/shrinking layer with filtering parameters to prevent noise. Not yet tested.
+
+Future changes: test on footage filmed, complete the addition of "reverse" traffic function, consider aircraft classification inputs + outputs, upload video9 to YouTube or other platform.
+
 ## Acknowledgements:
 
 ```bibtex
