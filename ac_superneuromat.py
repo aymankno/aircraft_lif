@@ -254,6 +254,7 @@ while True:
     far_y_old = far_y
     frame_idx += 1
 
+# Near
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
     descent_near_ids.append(n.idx)
@@ -262,15 +263,32 @@ ascent_near_ids = []
 for neuron in ascent_near_layer:
     ascent_near_ids.append(neuron.idx)
 
+grow_near_ids = []
+for neuron in grow_near_layer:
+    grow_near_ids.append(neuron.idx)
+
+shrink_near_ids = []
+for neuron in shrink_near_layer:
+    shrink_near_ids.append(neuron.idx)
+
+# Far
 descent_far_ids = []
-for neuron in descent_far_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
+for neuron in descent_far_layer:
     descent_far_ids.append(neuron.idx)
 
 ascent_far_ids = []
 for neuron in ascent_far_layer:
     ascent_far_ids.append(neuron.idx)
 
+grow_far_ids = []
+for neuron in grow_far_layer:
+    grow_far_ids.append(neuron.idx)
 
+shrink_far_ids = []
+for neuron in shrink_far_layer:
+    shrink_far_ids.append(neuron.idx)
+
+# Outputs
 landing_ids = []
 for neuron in landing_layer:
     landing_ids.append(neuron.idx)
@@ -282,9 +300,9 @@ for neuron in takeoff_layer:
 W = snn.weight_mat()
 
 descent_landing_before = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
-descent_takeoff_before = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean() # will be 0; not mapped
+descent_takeoff_before = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 
-ascent_landing_before = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean() # 0
+ascent_landing_before = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
 ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
 steps = frame_idx + 5
