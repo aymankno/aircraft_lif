@@ -403,7 +403,7 @@ while True:
         if min_near_delta < near_dy < max_near_delta:
             descent_fired = True
             for n in descent_near_layer:
-                snn.add_spike(frame_idx, n, abs(near_dy))
+                snn.add_spike(frame_num, n, abs(near_dy))
 
         if near_area > min_near_area:
             if old_near_area is None:
@@ -413,11 +413,11 @@ while True:
             if diff_near_area > near_diff_min:
                 value = 1 + (diff_near_area - near_diff_min) * near_slope
                 for n in grow_near_layer:
-                    snn.add_spike(frame_idx, n, value)
+                    snn.add_spike(frame_num, n, value)
             elif diff_near_area < -near_diff_min:
                 value = 1 + (-diff_near_area - near_diff_min) * near_slope
                 for n in shrink_near_layer:
-                    snn.add_spike(frame_idx, n, value)
+                    snn.add_spike(frame_num, n, value)
 
 
 
@@ -425,7 +425,7 @@ while True:
         far_dy = get_slope(far_y_old, far_y)
         if min_far_delta < far_dy < max_far_delta:
             for n in ascent_far_layer:
-                snn.add_spike(frame_idx, n, abs(far_dy))
+                snn.add_spike(frame_num, n, abs(far_dy))
 #        elif far_dy < -min_move:
 #            print(far_dy)
 #            for n in descent_far_layer:                        # see changelog 10/9
@@ -439,11 +439,11 @@ while True:
             if diff_far_area > far_diff_min:
                 value = 1 + (diff_far_area - far_diff_min) * far_slope
                 for n in grow_far_layer:
-                    snn.add_spike(frame_idx, n, value)
+                    snn.add_spike(frame_num, n, value)
             elif diff_far_area < -far_diff_min:
                 value = 1 + (-diff_far_area - far_diff_min) * far_slope
                 for n in shrink_far_layer:
-                    snn.add_spike(frame_idx, n, value)
+                    snn.add_spike(frame_num, n, value)
 
     if near_y is not None or far_y is not None:
         frames_seen += 1
@@ -476,20 +476,20 @@ while True:
 
     if frames_since_descent is not None and frames_since_descent < descent_window:
         for n in recent_descent_layer:
-            snn.add_spike(frame_idx, n, 13)
+            snn.add_spike(frame_num, n, 13)
     if frames_since_vanish is not None:
         sec = int(frames_since_vanish // fps)
         if sec < len(vanished_layer):
-            snn.add_spike(frame_idx, vanished_layer[sec], 13) # spikes only the neuron for sec
+            snn.add_spike(frame_num, vanished_layer[sec], 13) # spikes only the neuron for sec
 
     if near_y is None:
         old_near_area = None
     if far_y is None:
         old_far_area = None
 
-    if tg_from <= frame_idx <= tg_to:
-        print(frame_idx, near_y, far_y, descent_fired, descent_streak,
-          frames_since_descent, was_descending, frames_seen, frames_gone)
+#    if tg_from <= frame_idx <= tg_to:
+#        print(frame_idx, near_y, far_y, descent_fired, descent_streak,
+#          frames_since_descent, was_descending, frames_seen, frames_gone)
 
     near_y_old = near_y
     far_y_old = far_y
