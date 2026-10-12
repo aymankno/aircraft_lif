@@ -42,9 +42,6 @@ landing_decision = snn.create_neuron(threshold=200)       # threshold will chang
 takeoff_decision = snn.create_neuron(threshold = 200)
 touch_go_decision = snn.create_neuron(threshold=200)
 
-if landing_decision < landing_decision.threshold:
-    print("Pass")
-
 decision_neurons = landing_decision + takeoff_decision + touch_go_decision
 
 for pre in outputs:
