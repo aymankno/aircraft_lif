@@ -136,7 +136,7 @@ vanished_seen_min = 5          # frames it sees an aircraft before considering a
 frames_since_descent = None
 frames_since_vanish = None
 descent_streak = 0
-frames_gone = None
+frames_gone = 0
 was_descending = False
 frames_seen = 0
 
@@ -146,6 +146,9 @@ old_near_area = None
 old_far_area = None
 frame_idx = 0
 
+tg_from = 9440
+tg_to = 11388
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -154,8 +157,8 @@ while True:
     mask = backSub.apply(gray)
     near_mask = mask.copy()
     near_mask[604:755, 974:1239] = 0
-    near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
-    far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
+    near_y, near_area = track(near_mask, NEAR_BOX, 1, 10000)
+    far_y, far_area = track(mask, FAR_BOX, 1, 10000)
 
     descent_fired = False
     
@@ -251,6 +254,10 @@ while True:
         old_near_area = None
     if far_y is None:
         old_far_area = None
+
+    if tg_from <= frame_idx <= tg_to:
+        print(frame_idx, near_y, far_y, descent_fired, descent_streak,
+          frames_since_descent, was_descending, frames_seen, frames_gone)
 
     near_y_old = near_y
     far_y_old = far_y
