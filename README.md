@@ -92,6 +92,13 @@ Notes: Size layers have no purpose; only serve as an is_blob function. Could sca
 
 Future changes: test on footage filmed, complete the addition of "reverse" traffic function, consider aircraft classification inputs + outputs, upload video9 to YouTube or other platform.
 
+### Made recent_descent and vanished input layers for touch & go - 10/11/2026
+Tested new features from yesterday and made fixes to make them fully operational, began considering coding test layer, but chose instead to first make touch & go input layers. Opted for recent_descent, a true or false layer of just one neuron that spikes if a descent happened recently enough (within 18 seconds). Additionally, a vanished input layer that is comprised of 20 neurons, each representing the amount of time there have been no aircraft detected in neither the near nor far zone. Includes certain parameters to ensure no noise causes since_vanished to fire, like a requirement of a blob needing to be on screen for three frames before spiking the neuron, and vice-versa for off-screen. Additonally, troubleshot vanish-touch_go layer because it's weigjt did not change after training. Ultimately, I discovered that it only worked when there was no minimum for near_zone's area. Will do further analysis tommorow. As of now, it looks like testing is very possible from here and that training looks great!
+
+Notes: Percent change for vanish_touch/go and ascent_landing are 0. Ascent_landing is likely due to the fact that the current far zone is inside of the near zone, so there is no way that an ascent could be mischaracterized as a landing, and the opposite can be said about descent_takeoff; descents come directly through the far zone. Ran test for a random touch & go, found that no blobs were being detected (near_y, far_y, and all blob related variables were None, False, or 0) except for a singular line. Ran training with no parameters on area, vanish-touch/go working. To limit noise from landings flying over far zone, set a max area exclusively for far zone, vanish-touch/go still works. Although, if setting a min for near zone, vanish-touch/go is 0, no matter what you set # of neurons to.
+
+Future changes: test on footage filmed, add reverse traffic function, classification inputs + outputs, upload video9 to YouTube. Investigate why vanish-touch/go is 0 when a minimum near value is set.
+
 ## Acknowledgements:
 
 ```bibtex
