@@ -362,41 +362,12 @@ print("Ascent-takeoff:", ascent_takeoff_after, "percent change:", ((ascent_takeo
 print("Vanish-touch/go:", vanish_touch_go_after, "percent change:", ((vanish_touch_go_after - vanish_touch_go_before) / vanish_touch_go_before) * 100)
 print()
 
-### SYNTHETIC TESTING BELOW - NOT YET CHANGED TO VIDEO
-print("TESTING:")
-snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
-
-test_start_takeoff = 18500 # new start/ends for takeoffs & landings
-test_end_takeoff = 19062
-
-test_start_landing = 20682
-test_end_landing = 21176
-
-test_log = [(test_start_takeoff, test_end_takeoff, "takeoff"),
-            (test_start_landing, test_end_landing, "landing")]
-
-for start, end, label in test_log:
-    for frame in range(start, end):
-        for n in defined_inputs[label]:
-            snn.add_spike(frame-steps, n, train_values[label]) # train_values: lines 82/83
-
-snn.simulate(time_steps=22000)
-
-takeoff_takeoff_count = snn.ispikes[test_start_takeoff:test_end_takeoff, takeoff_ids].sum() # counts spikes from each group during test window
-takeoff_landing_count = snn.ispikes[test_start_takeoff:test_end_takeoff, landing_ids].sum()
-landing_landing_count = snn.ispikes[test_start_landing:test_end_landing, landing_ids].sum()
-landing_takeoff_count = snn.ispikes[test_start_landing:test_end_landing, takeoff_ids].sum()
-
-print("Takeoff-takeoff count:", takeoff_takeoff_count)
-print("Takeoff-landing count:", takeoff_landing_count)
-print("Landing-landing count:", landing_landing_count)
-print("Landing-takeoff count:", landing_takeoff_count)
-print()
 
 ### VIDEO TESTING AND TRAINING; SAME VIDEO
 print("VIDEO TESTING BELOW:")
-video2_online = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/videos/video2_online.mp4"
-cap = cv2.VideoCapture(video2_online)
+snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
+
+cap = cv2.VideoCapture(video9)
 
 backSub = cv2.createBackgroundSubtractorMOG2()
 
@@ -438,6 +409,9 @@ while True:
     landing_spiked = latest[landing_ids].any()
     if landing_spiked:
         print("LANDING")
+    touch_go_spiked = latest[touch_go_ids].any()
+    if touch_go_spiked:
+        print("TOUCH & GO")
     cv2.imshow("SuperNeuroMAT SNN", frame)
     cv2.waitKey(33)
     frame_num += 1
@@ -445,8 +419,12 @@ while True:
  # snn.simulate(frame_num+50)
 
 print()
-print("Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_ids ].sum())
-print("Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_ids ].sum())
+print("NEAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_near_ids ].sum())
+print("NEAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_near_ids ].sum())
+print("FAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_far_ids ].sum())
+print("FAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_far_ids ].sum())
+print("Vanished layer", snn.ispikes[video_start:(video_start+frame_num), vanish_ids ].sum())
 print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_ids ].sum())
 print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
+print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
 print()
