@@ -38,9 +38,12 @@ touch_go_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=1
 outputs = landing_layer + takeoff_layer + touch_go_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=200)]       # threshold will change based on tests for optimal thresh
-takeoff_decision = [snn.create_neuron(threshold = 200)]
-touch_go_decision = [snn.create_neuron(threshold=200)]
+landing_decision = snn.create_neuron(threshold=200)       # threshold will change based on tests for optimal thresh
+takeoff_decision = snn.create_neuron(threshold = 200)
+touch_go_decision = snn.create_neuron(threshold=200)
+
+if landing_decision < landing_decision.threshold:
+    print("Pass")
 
 decision_neurons = landing_decision + takeoff_decision + touch_go_decision
 
@@ -328,6 +331,19 @@ touch_go_ids = []
 for neuron in touch_go_layer:
     touch_go_ids.append(neuron.idx)
 
+# Decision layers:
+takeoff_decision_ids = []
+for neuron in takeoff_decision:
+    takeoff_decision_ids.append(neuron.idx)
+
+landing_decision_ids = []
+for neuron in landing_decision:
+    landing_decision_ids.append(neuron.idx)
+
+touch_go_decision_ids = []
+for neuron in touch_go_decision:
+    touch_go_decision_ids.append(neuron.idx)
+
 W = snn.weight_mat()
 
 descent_landing_before = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
@@ -421,7 +437,9 @@ old_far_area = None
 frame_num = 0
 video_start = 0
 
-
+landings = 0
+takeoffs = 0
+touch_go = 0
 
 while True:
     ret, frame = cap.read()
@@ -528,7 +546,7 @@ while True:
         old_near_area = None
     if far_y is None:
         old_far_area = None
-        
+
     near_y_old = near_y
     far_y_old = far_y
     frame_num += 1
@@ -545,3 +563,16 @@ print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_
 print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
 print("Touch/go layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
 print()
+
+rows = snn.ispikes[video_start : video_start + frame_num]
+
+landings    = rows[:, landing_decision.idx].sum()
+takeoffs    = rows[:, takeoff_decision.idx].sum()
+touch_gos   = rows[:, touch_go_decision.idx].sum()
+
+print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
+print("Operations:", landings + takeoffs + 2 * touch_gos)
+
+print("Landing at frames:", np.where(rows[:, landing_decision.idx])[0])
+print("Takeoff at frames:", np.where(rows[:, takeoff_decision.idx])[0])
+print("Touch & go at frames:", np.where(rows[:, touch_go_decision.idx])[0])
