@@ -113,11 +113,7 @@ min_near_delta = -6.0 # see changelog 10/9
 max_far_delta = 1.5
 max_near_delta = -1.0
 
-max_near_area = 3000 # ! - may change; test max were very far from median & mean for both
-max_far_area = 325 # !
-
-min_far_area = 85
-min_near_area = 850
+max_far_area = 100 # kept to reduce noise from landings (near box is on top of far box, landings fly directly through)
 
 far_diff_min = 4 # min change to count as a change & spike
 far_diff_max = 20 # everything above max counts as same; fires whole layer
