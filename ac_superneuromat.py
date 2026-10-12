@@ -44,6 +44,10 @@ touch_go_decision = [snn.create_neuron(threshold=200)]
 
 decision_neurons = landing_decision + takeoff_decision + touch_go_decision
 
+for pre in outputs:
+    for post in decision_neurons:
+        snn.create_synapse(pre, post, weight=1.0, stdp_enabled=False)
+
 for pre in learning_inputs:                                       # Makes synapses to connect everything together
     for post in outputs:
         snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
