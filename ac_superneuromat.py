@@ -563,13 +563,13 @@ print()
 
 rows = snn.ispikes[video_start : video_start + frame_num]
 
-landings    = rows[:, landing_decision.idx].sum()
-takeoffs    = rows[:, takeoff_decision.idx].sum()
-touch_gos   = rows[:, touch_go_decision.idx].sum()
+landings    = rows[:, landing_decision.idx[0]].sum()
+takeoffs    = rows[:, takeoff_decision.idx[0]].sum()
+touch_gos   = rows[:, touch_go_decision.idx[0]].sum()
 
 print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
 print("Operations:", landings + takeoffs + 2 * touch_gos)
 
-print("Landing at frames:", np.where(rows[:, landing_decision.idx])[0])
-print("Takeoff at frames:", np.where(rows[:, takeoff_decision.idx])[0])
-print("Touch & go at frames:", np.where(rows[:, touch_go_decision.idx])[0])
+print("Landing at frames:", np.where(rows[:, landing_decision[0].idx])[0])
+print("Takeoff at frames:", np.where(rows[:, takeoff_decision[0].idx])[0])
+print("Touch & go at frames:", np.where(rows[:, touch_go_decision[0].idx])[0])
