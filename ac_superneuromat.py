@@ -93,6 +93,7 @@ video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 cap = cv2.VideoCapture(video9)
 backSub = cv2.createBackgroundSubtractorMOG2()
 
+teacher_count = {"takeoff": 0, "landing": 0, "touch/go": 0}
 with open(video9_labels) as f:
     next(f)
     for row in f:                                    # Teacher Spike:
@@ -102,6 +103,7 @@ with open(video9_labels) as f:
         start, end, area, movement, direction = [x.strip() for x in row.split(',')]
         start, end = int(start), int(end)
         for f_idx in range(start, end, 11):
+            teacher_count[movement] += 1
             for n in defined_outputs[movement]:
                 snn.add_spike((f_idx + 1), n, 9)
 
@@ -321,6 +323,9 @@ vanish_touch_go_before = W[np.ix_(vanish_ids, touch_go_ids)].mean()
 steps = frame_idx
 snn.simulate(time_steps=steps) # simulates full stdp training with teacher spikes
 print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
+print("Takeoff teacher:", teacher_count["takeoff"], "actual:", snn.ispikes[:, takeoff_ids].sum())
+print("Landing teachers", teacher_count["landing"], "actual:", snn.ispikes [:, landing_ids].sum())
+print("Touch/go teacher:", teacher_count["touch/go"], "actual:", snn.ispikes[:, touch_go_ids].sum())
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
