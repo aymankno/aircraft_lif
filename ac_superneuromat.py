@@ -37,6 +37,13 @@ touch_go_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=1
 
 outputs = landing_layer + takeoff_layer + touch_go_layer
 
+# Decision layers
+landing_decision = [snn.create_neuron(threshold=200)]       # threshold will change based on tests for optimal thresh
+takeoff_decision = [snn.create_neuron(threshold = 200)]
+touch_go_decision = [snn.create_neuron(threshold=200)]
+
+decision_neurons = landing_decision + takeoff_decision + touch_go_decision
+
 for pre in learning_inputs:                                       # Makes synapses to connect everything together
     for post in outputs:
         snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
