@@ -145,19 +145,6 @@ frame_idx = 0
 tg_from = 9440
 tg_to = 11388
 
-takeoff_ranges = []
-with open(video9_labels) as f:
-    next(f)
-    for row in f:
-        row = row.strip()
-        if not row:
-            continue
-        start, end, area, movement, direction = [x.strip() for x in row.split(',')]
-        if movement == "takeoff":
-            takeoff_ranges.append((int(start), int(end)))
-
-far_takeoff_areas = []
-
 def biggest_area(m, box):
     x, y, w, h = box
     n, _, stats, _ = cv2.connectedComponentsWithStats(m[y:y+h, x:x+w])
@@ -172,13 +159,9 @@ while True:
     near_mask = mask.copy()
     near_mask[604:755, 974:1239] = 0
     near_y, near_area = track(near_mask, NEAR_BOX, 1, 10000)
-    far_y, far_area = track(mask, FAR_BOX, 1, 10000)
+    far_y, far_area = track(mask, FAR_BOX, 1, max_far_area)
 
     descent_fired = False
-    if any(s <= frame_idx < e for s, e in takeoff_ranges):
-        a = biggest_area(mask, FAR_BOX)
-        if a > 0:
-            far_takeoff_areas.append(a)
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
@@ -217,7 +200,7 @@ while True:
 #            for n in descent_far_layer:                        # see changelog 10/9
 #                snn.add_spike(frame_idx, n, abs(far_dy))
 
-        if far_area > min_far_area:
+        if far_area > 1:
             if old_far_area is None:
                 old_far_area = far_area
             diff_far_area = far_area - old_far_area
@@ -280,9 +263,6 @@ while True:
     near_y_old = near_y
     far_y_old = far_y
     frame_idx += 1
-
-print(frame_idx)
-print(f"Far-t/o areas: min: {np.min(far_takeoff_areas)}, max: {np.max(far_takeoff_areas)}, median: {np.median(far_takeoff_areas)}, mean: {np.mean(far_takeoff_areas)}")
 
 # Near
 descent_near_ids = []
