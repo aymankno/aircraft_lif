@@ -114,6 +114,7 @@ max_far_delta = 1.5
 max_near_delta = -1.0
 
 max_far_area = 100 # kept to reduce noise from landings (near box is on top of far box, landings fly directly through)
+min_near_area = 1
 
 far_diff_min = 4 # min change to count as a change & spike
 far_diff_max = 20 # everything above max counts as same; fires whole layer
@@ -158,7 +159,7 @@ while True:
     mask = backSub.apply(gray)
     near_mask = mask.copy()
     near_mask[604:755, 974:1239] = 0
-    near_y, near_area = track(near_mask, NEAR_BOX, 1, 10000)
+    near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, 10000)
     far_y, far_area = track(mask, FAR_BOX, 1, max_far_area)
 
     descent_fired = False
