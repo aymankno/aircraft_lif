@@ -149,6 +149,24 @@ frame_idx = 0
 tg_from = 9440
 tg_to = 11388
 
+takeoff_ranges = []
+with open(video9_labels) as f:
+    next(f)
+    for row in f:
+        row = row.strip()
+        if not row:
+            continue
+        start, end, area, movement, direction = [x.strip() for x in row.split(',')]
+        if movement == "takeoff":
+            takeoff_ranges.append((int(start), int(end)))
+
+far_takeoff_areas = []
+
+def biggest_area(m, box):
+    x, y, w, h = box
+    n, _, stats, _ = cv2.connectedComponentsWithStats(m[y:y+h, x:x+w])
+    return stats[1:, cv2.CC_STAT_AREA].max() if n > 1 else 0
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -161,6 +179,10 @@ while True:
     far_y, far_area = track(mask, FAR_BOX, 1, 10000)
 
     descent_fired = False
+    if any(s <= frame_idx < e for s, e in takeoff_ranges):
+        a = biggest_area(mask, FAR_BOX)
+        if a > 0:
+            far_takeoff_areas.append(a)
     
     if near_y is not None and near_y_old is not None:
         near_dy = get_slope(near_y_old, near_y)
@@ -264,6 +286,7 @@ while True:
     frame_idx += 1
 
 print(frame_idx)
+print(f"Far-t/o areas: min: {np.min(far_takeoff_areas)}, max: {np.max(far_takeoff_areas)}, median: {np.median(far_takeoff_areas)}, mean: {np.mean(far_takeoff_areas)}")
 
 # Near
 descent_near_ids = []
