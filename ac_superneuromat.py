@@ -364,22 +364,51 @@ print("Vanish-touch/go:", vanish_touch_go_after, "percent change:", ((vanish_tou
 print()
 
 
-### VIDEO TESTING AND TRAINING; SAME VIDEO
+### VIDEO TESTING - NEW VIDEO
 print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 
-cap = cv2.VideoCapture(video9)
+video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
+cap = cv2.VideoCapture(video10)
 
 backSub = cv2.createBackgroundSubtractorMOG2()
 
-def get_slope(y_old, y_new):
-    delta_y = y_old - y_new
-    return delta_y
+min_far_delta = 0.25 # all footage was with traffic departing away from camera. Will add fix in future to account for operations torwards camera
+min_near_delta = -6.0 # see changelog 10/9
 
-frame_num = 0
-y_old = None
-video_start = snn.ispikes.shape[0]
-delta_y = 0
+max_far_delta = 1.5
+max_near_delta = -1.0
+
+max_far_area = 100 # kept to reduce noise from landings (near box is on top of far box, landings fly directly through)
+min_near_area = 1
+
+far_diff_min = 4 # min change to count as a change & spike
+far_diff_max = 20 # everything above max counts as same; fires whole layer
+far_slope = 0.719
+
+near_diff_min = 24
+near_diff_max = 150
+near_slope = 0.0913
+
+fps = cap.get(cv2.CAP_PROP_FPS)
+descent_window = int(18 * fps) # how long recent_descent until leaked to 0
+min_descent_frames = 5         # descent frames in a row before counted (for noise)
+vanished_unseen_min = 5        # frames it doesn't see aircraft before considered vanished
+vanished_seen_min = 5          # frames it sees an aircraft before considering aircraft unvanished
+
+frames_since_descent = None
+frames_since_vanish = None
+descent_streak = 0
+frames_gone = 0
+was_descending = False
+frames_seen = 0
+
+near_y_old = None
+far_y_old = None
+old_near_area = None
+old_far_area = None
+frame_idx = 0
+video_start = 0
 
 while True:
     ret, frame = cap.read()
@@ -507,5 +536,5 @@ print("FAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascen
 print("Vanished layer", snn.ispikes[video_start:(video_start+frame_num), vanish_ids ].sum())
 print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_ids ].sum())
 print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
-print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
+print("Touch/go layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
 print()
