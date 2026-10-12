@@ -526,8 +526,6 @@ while True:
 
 snn.simulate(frame_num)
 
- # snn.simulate(frame_num+50)
-
 print()
 print("NEAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_near_ids ].sum())
 print("NEAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_near_ids ].sum())
