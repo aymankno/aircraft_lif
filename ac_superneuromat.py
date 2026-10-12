@@ -528,8 +528,8 @@ snn.simulate(frame_num)
 
 print()
 print("NEAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_near_ids ].sum())
-print("NEAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_near_ids ].sum())
-print("FAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_far_ids ].sum())
+print("NEAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_near_ids ].sum()) # 0; not possible
+print("FAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_far_ids ].sum()) # 0; not possible
 print("FAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_far_ids ].sum())
 print("Vanished layer", snn.ispikes[video_start:(video_start+frame_num), vanish_ids ].sum())
 print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_ids ].sum())
