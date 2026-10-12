@@ -407,7 +407,7 @@ near_y_old = None
 far_y_old = None
 old_near_area = None
 old_far_area = None
-frame_idx = 0
+frame_num = 0
 video_start = 0
 
 while True:
