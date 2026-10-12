@@ -410,6 +410,8 @@ old_far_area = None
 frame_num = 0
 video_start = 0
 
+
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -515,11 +517,7 @@ while True:
         old_near_area = None
     if far_y is None:
         old_far_area = None
-
-#    if tg_from <= frame_idx <= tg_to:
-#        print(frame_idx, near_y, far_y, descent_fired, descent_streak,
-#          frames_since_descent, was_descending, frames_seen, frames_gone)
-
+        
     near_y_old = near_y
     far_y_old = far_y
     frame_num += 1
