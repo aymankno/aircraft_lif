@@ -99,6 +99,13 @@ Notes: Percent change for vanish_touch/go and ascent_landing are 0. Ascent_landi
 
 Future changes: test on footage filmed, add reverse traffic function, classification inputs + outputs, upload video9 to YouTube. Investigate why vanish-touch/go is 0 when a minimum near value is set.
 
+### Wrote video test on a seperate video (video10), added decision layers for counting of events - 10/12/2027
+Wrote a full video test on a new video, different from the training video: video10. After running, I realized that it would be best to add decision layers and begin coding the counting of events. Chose to make decision layers, kind of like the neurons in aircraft_counter.py. Each decision layer is "charged" by spikes from output layers, synapses connect them with fixed weights of 1.0. When a certain number of outputs spike their designated "bucket" (decision layer), that decision layer spikes and triggers a count. The concept is fully coded, but general bug fixes and adjustments to thresholds are yet to be completed.
+
+Notes: Code requires lots of computational power to run, not only draining my CPU but also my battery in additon to taking several minutes to run due to the long video times (30 minutes for each test and training) and the requirement for the model to check every framd (around 30 frames per second). Perhaps something to save weights in the future to decrease run time if this becomes a bigger problem.
+
+Future changes: Adjust thresholds of decision layers, add reverse traffic function, classification input & output layers, and upload both video 9 and video 10 to YouTube. Before progressing further, reveiw past future changes noted in changelog and apply those changes to ac_superneuromat.py as needed.
+
 ## Acknowledgements:
 
 ```bibtex
