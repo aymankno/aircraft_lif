@@ -7,8 +7,8 @@ V2 = ac_superneuromat.py - SuperNeuroMAT spiking neural network
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
-Latest changes (10/11/2026):
-Wrote input layers to feed touch & go: recent_descent and vanished layers. Recent_descent is comprised of a singular neuron that is spiked if a descent happened within the past 18 seconds. The vanished layer is a layer of 20 neurons that serves as a counter; every second that no aircraft has been detected on screen, that second's designated neuron spikes. Full training loop completed, test coming next. Planning to upload video9 (training video) to YouTube soon.
+Latest changes (10/12/2026):
+Wrote the full testing loop on a new video (video10), removed the old synthetic testing. Added decision layers to begin counting takeoffs, landings, and touch & goes from footage. Noted long compile times due to the large amount of frames being reviewed (30 fps, 30 minutes) with two seperate attention zones. Planning to add training and testing videos to YouTube in coming days and add a reverse decision & output layer as needed and test on reversed footage soon.
 
 ## License
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
@@ -104,7 +104,7 @@ Wrote a full video test on a new video, different from the training video: video
 
 Notes: Code requires lots of computational power to run, not only draining my CPU but also my battery in additon to taking several minutes to run due to the long video times (30 minutes for each test and training) and the requirement for the model to check every framd (around 30 frames per second). Perhaps something to save weights in the future to decrease run time if this becomes a bigger problem.
 
-Future changes: Adjust thresholds of decision layers, add reverse traffic function, classification input & output layers, and upload both video 9 and video 10 to YouTube. Before progressing further, reveiw past future changes noted in changelog and apply those changes to ac_superneuromat.py as needed.
+Future changes: Adjust thresholds of decision layers, add reverse traffic function (likely to the decision and/or output layer), classification input & output layers, and upload both video 9 and video 10 to YouTube. Before progressing further, reveiw past future changes noted in changelog and apply those changes to ac_superneuromat.py as needed.
 
 ## Acknowledgements:
 
