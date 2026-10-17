@@ -106,6 +106,13 @@ Notes: Code requires lots of computational power to run, not only draining my CP
 
 Future changes: Adjust thresholds of decision layers, add reverse traffic function (likely to the decision and/or output layer), classification input & output layers, and upload both video 9 and video 10 to YouTube. Before progressing further, reveiw past future changes noted in changelog and apply those changes to ac_superneuromat.py as needed.
 
+### Made a run_model() function, set framework for a future reverse traffic function - 10/16/2026
+Noticed a redundancy in repeated identical code, so I made the run_model() function that takes the video you are running the model on and sets the input layers' spike times. The function does not include a simulation. Furthermore, I wrote the reverse output and decision layers and set their IDs in lists to prepare for future reverse traffic implementation.
+
+Notes: Decision thresholds need to be adjusted, but current parameters set all three at 13 movements. More than needed, but planning to run tests and "train" to find ideal thresholds.
+
+Future changes: Solidify thresholds of decision layers, finish implementation of reverse traffic function, and upload video9 and video10 to YouTube. Reverse both videos for training and testing on reverse traffic in the future. 
+
 ## Acknowledgements:
 
 ```bibtex
