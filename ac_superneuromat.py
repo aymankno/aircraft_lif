@@ -12,21 +12,17 @@ snn = SNN()
 descent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
-grow_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-shrink_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-
 descent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
-grow_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-shrink_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+grow_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+shrink_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
 recent_descent_layer = [snn.create_neuron(threshold=0.5)]                           # one neuron because recent_descent is yes/no
 vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(20)]    # 20 neurons to make the layer into a timer, one neuron / sec
 
 learning_inputs = descent_near_layer + ascent_near_layer +\
-         descent_far_layer + ascent_far_layer + grow_near_layer + shrink_near_layer +\
-         grow_far_layer + shrink_far_layer
+         descent_far_layer + ascent_far_layer + grow_layer + shrink_layer
 
 memory_inputs = recent_descent_layer + vanished_layer
 
@@ -46,9 +42,15 @@ reverse_decision = [snn.create_neuron(threshold=100)]
 
 decision_neurons = landing_decision + takeoff_decision + touch_go_decision + reverse_decision
 
-for pre in outputs:
-    for post in decision_neurons:
-        snn.create_synapse(pre, post, weight=1.0, stdp_enabled=False)
+output_decisions = [(landing_layer, landing_decision),
+                    (takeoff_layer, takeoff_decision),
+                    (touch_go_layer, touch_go_decision),
+                    (reverse_layer, reverse_decision),]
+
+for layer, decision in output_decisions:
+    for pre in layer:
+        for post in decision:
+            snn.create_synapse(pre, post, weight=1.0, stdp_enabled=False)
 
 for pre in learning_inputs:
     for post in outputs:
@@ -161,6 +163,10 @@ def run_model(video):
     tg_from = 9440
     tg_to = 11388
 
+    traffic_directions_defined = {"away": shrink_layer,
+                                  "torwards": grow_layer}
+    traffic_direction = "away"
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -192,12 +198,12 @@ def run_model(video):
                 old_near_area = near_area
                 if diff_near_area > near_diff_min:
                     value = 1 + (diff_near_area - near_diff_min) * near_slope
-                    for n in grow_near_layer:
-                        snn.add_spike(frame_idx, n, value)
+                    for n in grow_layer:
+                        snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
                 elif diff_near_area < -near_diff_min:
                     value = 1 + (-diff_near_area - near_diff_min) * near_slope
-                    for n in shrink_near_layer:
-                        snn.add_spike(frame_idx, n, value)
+                    for n in shrink_layer:
+                        snn.add_spike(frame_idx, n, value, exist="add")
 
 
 
@@ -218,12 +224,12 @@ def run_model(video):
                 old_far_area = far_area
                 if diff_far_area > far_diff_min:
                     value = 1 + (diff_far_area - far_diff_min) * far_slope
-                    for n in grow_far_layer:
-                        snn.add_spike(frame_idx, n, value)
+                    for n in grow_layer:
+                        snn.add_spike(frame_idx, n, value, exist='add')
                 elif diff_far_area < -far_diff_min:
                     value = 1 + (-diff_far_area - far_diff_min) * far_slope
-                    for n in shrink_far_layer:
-                        snn.add_spike(frame_idx, n, value)
+                    for n in shrink_layer:
+                        snn.add_spike(frame_idx, n, value, exist='add')
 
         if near_y is not None or far_y is not None:
             frames_seen += 1
@@ -288,14 +294,6 @@ ascent_near_ids = []
 for neuron in ascent_near_layer:
     ascent_near_ids.append(neuron.idx)
 
-grow_near_ids = []
-for neuron in grow_near_layer:
-    grow_near_ids.append(neuron.idx)
-
-shrink_near_ids = []
-for neuron in shrink_near_layer:
-    shrink_near_ids.append(neuron.idx)
-
 # Far
 descent_far_ids = []
 for neuron in descent_far_layer:
@@ -305,12 +303,13 @@ ascent_far_ids = []
 for neuron in ascent_far_layer:
     ascent_far_ids.append(neuron.idx)
 
-grow_far_ids = []
-for neuron in grow_far_layer:
-    grow_far_ids.append(neuron.idx)
+# Size (grow/shrink)
+grow_ids = []
+for neuron in grow_layer:
+    grow_ids.append(neuron.idx)
 
 shrink_far_ids = []
-for neuron in shrink_far_layer:
+for neuron in shrink_layer:
     shrink_far_ids.append(neuron.idx)
 
 # Memory inputs:
