@@ -37,9 +37,9 @@ traffic_torwards_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_
 outputs = landing_layer + takeoff_layer + touch_go_layer + traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=3)]       # threshold will change based on tests for optimal thresh
-takeoff_decision = [snn.create_neuron(threshold=4)]
-touch_go_decision = [snn.create_neuron(threshold=9)]
+landing_decision = [snn.create_neuron(threshold=60, leak=0.1)]       # threshold will change based on tests for optimal thresh
+takeoff_decision = [snn.create_neuron(threshold=80, leak=0.1)]
+touch_go_decision = [snn.create_neuron(threshold=150, leak=0.1)]
 
 traffic_away_decision = [snn.create_neuron(threshold=1)]
 traffic_torwards_decision = [snn.create_neuron(threshold=1)]
@@ -143,11 +143,13 @@ def run_model(video):
     max_far_delta = 1.5         # away
     max_near_delta = -1.0       # away
 
-    max_far_area = 100 # kept to reduce noise from landings (near box is on top of far box, landings fly directly through)
-    min_near_area = 1
+    min_far_area = 5
+    max_far_area = 75
+
+    min_near_area = 50
+    max_near_area = 7500
 
     far_diff_min = 4 # min change to count as a change & spike
-    far_diff_max = 20 # everything above max counts as same; fires whole layer
     far_slope = 0.719
 
     near_diff_min = 24
@@ -174,8 +176,8 @@ def run_model(video):
     old_far_area = None
     frame_idx = 0
 
-    tg_from = 9440
-    tg_to = 11388
+#    tg_from = 9440
+#    tg_to = 11388
 
     while True:
         ret, frame = cap.read()
@@ -185,8 +187,8 @@ def run_model(video):
         mask = backSub.apply(gray)
         near_mask = mask.copy()
         near_mask[604:755, 974:1239] = 0
-        near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, 10000)
-        far_y, far_area = track(mask, FAR_BOX, 1, max_far_area)
+        near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
+        far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
 
         descent_fired = False
         
@@ -282,10 +284,6 @@ def run_model(video):
             old_near_area = None
         if far_y is None:
             old_far_area = None
-
-        if tg_from <= frame_idx <= tg_to:
-            print(frame_idx, near_y, far_y, descent_fired, descent_streak,
-            frames_since_descent, was_descending, frames_seen, frames_gone)
 
         near_y_old = near_y
         far_y_old = far_y
@@ -471,8 +469,8 @@ with open(video9_labels) as f:
 
         window = rows[start:end + lag]
         for layer, ids in measure.items():
-            total = window[:, ids].sum()
-            results[movement][layer].append(total)
+            avg_frame = window[:, ids].sum()
+            results[movement][layer].append(avg_frame)
 
 for lab in labels:
     print(f"\n{lab.upper()} events:")
