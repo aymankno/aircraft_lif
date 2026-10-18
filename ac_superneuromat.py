@@ -137,16 +137,22 @@ def run_model(video):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
-    min_far_delta = 0.25        # away
-    max_far_delta = 1.5         # away
+    min_far_delta_away = 0.25        # away
+    max_far_delta_away = 1.5         # away
     
-    min_near_delta = -6.0       # away
-    max_near_delta = -1.0       # away
+    min_near_delta_away = -6.0       # away
+    max_near_delta_away = -1.0       # away
+
+    min_far_delta_torwards = -1.5
+    max_far_delta_torwards = -0.25
+
+    min_near_delta_torwards = 1.0
+    max_near_delta_torwards = 6.9
 
     min_far_area = 1
     max_far_area = 100
 
-    min_near_area = 1 # 10 worked; was below
+    min_near_area = 100 # 10 worked; was below
     max_near_area = 10000
 
     far_diff_min = 4 # min change to count as a change & spike
@@ -193,13 +199,13 @@ def run_model(video):
         
         if near_y is not None and near_y_old is not None:
             near_dy = get_slope(near_y_old, near_y)
-    #        if near_dy > min_move:
-    #            print(near_dy)                                     # commented out until reversing is implemented (see changelog)
-    #            for n in ascent_near_layer:
-    #                snn.add_spike(frame_idx, n, abs(near_dy))
-            if min_near_delta < near_dy < max_near_delta:
+            if min_near_delta_away < near_dy < max_near_delta_away:
                 descent_fired = True
-                for n in descent_near_layer:
+                for n in descent_near_layer:                                        # away
+                    snn.add_spike(frame_idx, n, abs(near_dy))
+
+            elif  min_near_delta_torwards < near_dy < max_near_delta_torwards:
+                for n in ascent_near_layer:                                         # torwards
                     snn.add_spike(frame_idx, n, abs(near_dy))
 
             if near_area > min_near_area:
@@ -220,13 +226,15 @@ def run_model(video):
 
         if far_y is not None and far_y_old is not None:
             far_dy = get_slope(far_y_old, far_y)
-            if min_far_delta < far_dy < max_far_delta:
+            if min_far_delta_away < far_dy < max_far_delta_away:
                 for n in ascent_far_layer:
                     snn.add_spike(frame_idx, n, abs(far_dy))
-    #        elif far_dy < -min_move:
-    #            print(far_dy)
-    #            for n in descent_far_layer:                        # see changelog 10/9
-    #                snn.add_spike(frame_idx, n, abs(far_dy))
+
+            if min_far_delta_torwards < far_dy < max_far_delta_torwards:
+                descent_fired = True
+                for n in descent_far_layer:
+                    snn.add_spike(frame_idx, n, abs(far_dy))
+
 
             if far_area > 1:
                 if old_far_area is None:
