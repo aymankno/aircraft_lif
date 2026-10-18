@@ -30,22 +30,27 @@ memory_inputs = recent_descent_layer + vanished_layer
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
 takeoff_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
 touch_go_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
-reverse_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
 
-outputs = landing_layer + takeoff_layer + touch_go_layer + reverse_layer
+traffic_away_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
+traffic_torwards_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
+
+outputs = landing_layer + takeoff_layer + touch_go_layer + traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=15)]       # threshold will change based on tests for optimal thresh
-takeoff_decision = [snn.create_neuron(threshold=15)]
-touch_go_decision = [snn.create_neuron(threshold=15)]
-reverse_decision = [snn.create_neuron(threshold=100)]
+landing_decision = [snn.create_neuron(threshold=1)]       # threshold will change based on tests for optimal thresh
+takeoff_decision = [snn.create_neuron(threshold=1)]
+touch_go_decision = [snn.create_neuron(threshold=1)]
 
-decision_neurons = landing_decision + takeoff_decision + touch_go_decision + reverse_decision
+traffic_away_decision = [snn.create_neuron(threshold=1)]
+traffic_torwards_decision = [snn.create_neuron(threshold=1)]
+
+decision_neurons = landing_decision + takeoff_decision + touch_go_decision + traffic_away_decision + traffic_torwards_decision
 
 output_decisions = [(landing_layer, landing_decision),
                     (takeoff_layer, takeoff_decision),
                     (touch_go_layer, touch_go_decision),
-                    (reverse_layer, reverse_decision),]
+                    (traffic_away_layer, traffic_away_decision),
+                    (traffic_torwards_layer, traffic_torwards_decision)]
 
 for layer, decision in output_decisions:
     for pre in layer:
@@ -162,10 +167,6 @@ def run_model(video):
 
     tg_from = 9440
     tg_to = 11388
-
-    traffic_directions_defined = {"away": shrink_layer,
-                                  "torwards": grow_layer}
-    traffic_direction = "away"
 
     while True:
         ret, frame = cap.read()
@@ -330,9 +331,13 @@ touch_go_ids = []
 for neuron in touch_go_layer:
     touch_go_ids.append(neuron.idx)
 
-reverse_ids = []
-for neuron in reverse_layer:
-    reverse_ids.append(neuron.idx)
+traffic_torwards_ids = []
+for neuron in traffic_torwards_layer:
+    traffic_torwards_ids.append(neuron.idx)
+
+traffic_away_ids = []
+for neuron in traffic_away_layer:
+    traffic_away_ids.append(neuron.idx)
 
 # Decision layers:
 takeoff_decision_ids = []
@@ -347,9 +352,13 @@ touch_go_decision_ids = []
 for neuron in touch_go_decision:
     touch_go_decision_ids.append(neuron.idx)
 
-reverse_decision_ids = []
-for neuron in reverse_decision:
-    reverse_decision_ids.append(neuron.idx)
+away_decision_ids = []
+for neuron in traffic_away_decision:
+    away_decision_ids.append(neuron.idx)
+
+torwards_decision_ids = []
+for neuron in traffic_torwards_decision:
+    torwards_decision_ids.append(neuron.idx)
 
 W = snn.weight_mat()
 
@@ -433,7 +442,8 @@ measure = {
     "landing":  landing_decision_ids,
     "takeoff":  takeoff_decision_ids,
     "touch/go": touch_go_decision_ids,
-    "reverse":   reverse_ids,           # Currently unmapped
+    "traffic away":   traffic_away_ids,
+    "traffic torwards": traffic_torwards_ids
 }
 
 labels = ["takeoff", "landing", "touch/go"]
