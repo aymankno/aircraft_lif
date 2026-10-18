@@ -113,6 +113,13 @@ Notes: Decision thresholds need to be adjusted, but current parameters set all t
 
 Future changes: Solidify thresholds of decision layers, finish implementation of reverse traffic function, and upload video9 and video10 to YouTube. Reverse both videos for training and testing on reverse traffic in the future. 
 
+### Significant progress with decision layers, replaced reverse layers with two traffic direction layers (away or torwards) - 10/17/2026
+Made threshold test for video9, achieved theoretical results but did not implement due to fluctuating parameter code in the run_model() loop: min and max areas for near and far zones. Replaced the reverse output and decision layers with traffic direction layers: 'torwards' or 'away' from camera. Mapped inputs, set training spikes (currently all 'away'), awaiting minor training and testing on reversed video, and decision layer implementation. Expecting full implementation tomorrow. Additonally, minor fixes to readability of ac_superneuromat.
+
+Notes: Threshold issues likely caused by something changed in synapse creation. Consider reviewing past commits prior to 10/17 to identify the issue.
+
+Future changes: Upload video9 and video10 to YouTube, reverse both videos to train reverse function & make chanegs as needed. Begin classification input, output, and decision layers. 
+
 ## Acknowledgements:
 
 ```bibtex
