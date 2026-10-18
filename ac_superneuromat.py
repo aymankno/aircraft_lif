@@ -37,9 +37,9 @@ traffic_torwards_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_
 outputs = landing_layer + takeoff_layer + touch_go_layer + traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=1)]       # threshold will change based on tests for optimal thresh
-takeoff_decision = [snn.create_neuron(threshold=1)]
-touch_go_decision = [snn.create_neuron(threshold=1)]
+landing_decision = [snn.create_neuron(threshold=30)]       # threshold will change based on tests for optimal thresh
+takeoff_decision = [snn.create_neuron(threshold=100)]
+touch_go_decision = [snn.create_neuron(threshold=150)]
 
 traffic_away_decision = [snn.create_neuron(threshold=1)]
 traffic_torwards_decision = [snn.create_neuron(threshold=1)]
@@ -63,6 +63,10 @@ for pre in learning_inputs:
 
 for pre in recent_descent_layer:
     for post in takeoff_layer:
+        snn.create_synapse(pre, post, weight=-0.1, stdp_enabled=False)
+
+for pre in takeoff_layer:
+    for post in landing_layer:
         snn.create_synapse(pre, post, weight=-0.1, stdp_enabled=False)
 
 for pre in vanished_layer:
