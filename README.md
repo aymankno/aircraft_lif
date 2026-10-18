@@ -118,7 +118,7 @@ Made threshold test for video9, achieved theoretical results but did not impleme
 
 Notes: Threshold issues likely caused by something changed in synapse creation. Consider reviewing past commits prior to 10/17 to identify the issue.
 
-Future changes: Upload video9 and video10 to YouTube, reverse both videos to train reverse function & make chanegs as needed. Begin classification input, output, and decision layers. 
+Future changes: Finish implementation of decision layers, upload video9 and video10 to YouTube, reverse both videos to train reverse function & make chanegs as needed. Begin classification input, output, and decision layers. 
 
 ## Acknowledgements:
 
