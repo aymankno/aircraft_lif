@@ -37,9 +37,9 @@ traffic_torwards_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_
 outputs = landing_layer + takeoff_layer + touch_go_layer + traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=30)]       # threshold will change based on tests for optimal thresh
-takeoff_decision = [snn.create_neuron(threshold=100)]
-touch_go_decision = [snn.create_neuron(threshold=150)]
+landing_decision = [snn.create_neuron(threshold=3)]       # threshold will change based on tests for optimal thresh
+takeoff_decision = [snn.create_neuron(threshold=4)]
+touch_go_decision = [snn.create_neuron(threshold=9)]
 
 traffic_away_decision = [snn.create_neuron(threshold=1)]
 traffic_torwards_decision = [snn.create_neuron(threshold=1)]
@@ -91,7 +91,11 @@ def track(mask, box, min_area, max_area):
 
     return top + height / 2, area
 
-### TRAINING PIPELINE BELOW
+def get_slope(y_old, y_new):
+    delta_y = y_old - y_new
+    return delta_y
+
+### TRAINING BELOW
 print()
 print("TRAINING:")
 video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
@@ -102,13 +106,12 @@ defined_outputs = {"takeoff": takeoff_layer,
                    "landing": landing_layer,
                    "touch/go": touch_go_layer}
 
+defined_directions = {"away": traffic_away_layer, 
+                      "torwards": traffic_torwards_layer}
+
 Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
 Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses; not used
 snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)              # Sets up stdp based on values above
-
-def get_slope(y_old, y_new):
-    delta_y = y_old - y_new
-    return delta_y
 
 video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 
@@ -124,6 +127,8 @@ with open(video9_labels) as f:
         for f_idx in range(start, end, 11):
             teacher_count[movement] += 1
             for n in defined_outputs[movement]:
+                snn.add_spike((f_idx + 1), n, 9)
+            for n in defined_directions[direction]:
                 snn.add_spike((f_idx + 1), n, 9)
 
 def run_model(video):
