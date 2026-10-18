@@ -138,22 +138,21 @@ def run_model(video):
     backSub = cv2.createBackgroundSubtractorMOG2()
 
     min_far_delta = 0.25        # away
-    min_near_delta = -6.0       # away
-
     max_far_delta = 1.5         # away
+    
+    min_near_delta = -6.0       # away
     max_near_delta = -1.0       # away
 
-    min_far_area = 5
-    max_far_area = 75
+    min_far_area = 1
+    max_far_area = 100
 
-    min_near_area = 50
-    max_near_area = 7500
+    min_near_area = 1 # 10 worked; was below
+    max_near_area = 10000
 
     far_diff_min = 4 # min change to count as a change & spike
     far_slope = 0.719
 
     near_diff_min = 24
-    near_diff_max = 150
     near_slope = 0.0913
 
     fps = cap.get(cv2.CAP_PROP_FPS)
