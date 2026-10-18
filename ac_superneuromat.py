@@ -398,13 +398,13 @@ print("Vanish-touch/go:", vanish_touch_go_after, "percent change:", ((vanish_tou
 print()
 
 
-### VIDEO TESTING - NEW VIDEO
+### VIDEO TESTING
 print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
-video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
+# video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
 backSub = cv2.createBackgroundSubtractorMOG2()
 
-frame_num, video_start = run_model(video10)
+frame_num, video_start = run_model(video9)
 
 print()
 print("NEAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_near_ids ].sum())
@@ -429,3 +429,37 @@ print("Operations:", landings + takeoffs + 2 * touch_gos)
 print("Landing at frames:", np.where(rows[:, landing_decision[0].idx])[0])
 print("Takeoff at frames:", np.where(rows[:, takeoff_decision[0].idx])[0])
 print("Touch & go at frames:", np.where(rows[:, touch_go_decision[0].idx])[0])
+
+measure = {
+    "landing":  landing_decision_ids,
+    "takeoff":  takeoff_decision_ids,
+    "touch/go": touch_go_decision_ids,
+    "reverse":   reverse_ids,           # Currently unmapped
+}
+
+labels = ["takeoff", "landing", "touch/go"]
+results = {lab: {layer: [] for layer in measure} for lab in labels}
+
+lag = 30   # frames after the event ends to keep counting
+
+with open(video9_labels) as f:
+    next(f)
+    for row in f:
+        row = row.strip()
+        if not row:
+            continue
+        start, end, area, movement, direction = [x.strip() for x in row.split(',')]
+        start, end = int(start), int(end)
+
+        window = rows[start:end + lag]
+        for layer, ids in measure.items():
+            total = window[:, ids].sum()
+            results[movement][layer].append(total)
+
+for lab in labels:
+    print(f"\n{lab.upper()} events:")
+    for layer, vals in results[lab].items():
+        if not vals:
+            continue
+        v = np.array(vals)
+        print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
