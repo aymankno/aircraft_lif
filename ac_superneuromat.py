@@ -37,9 +37,9 @@ traffic_torwards_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_
 outputs = landing_layer + takeoff_layer + touch_go_layer + traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=60, leak=0.1)]       # threshold will change based on tests for optimal thresh
-takeoff_decision = [snn.create_neuron(threshold=80, leak=0.1)]
-touch_go_decision = [snn.create_neuron(threshold=150, leak=0.1)]
+landing_decision = [snn.create_neuron(threshold=28, leak=0.1, reset_state=0)]       # threshold will change based on tests for optimal thresh
+takeoff_decision = [snn.create_neuron(threshold=40, leak=0.1, reset_state=0)]
+touch_go_decision = [snn.create_neuron(threshold=137, leak=0.1, reset_state=0)]
 
 traffic_away_decision = [snn.create_neuron(threshold=1)]
 traffic_torwards_decision = [snn.create_neuron(threshold=1)]
@@ -63,11 +63,7 @@ for pre in learning_inputs:
 
 for pre in recent_descent_layer:
     for post in takeoff_layer:
-        snn.create_synapse(pre, post, weight=-0.1, stdp_enabled=False)
-
-for pre in takeoff_layer:
-    for post in landing_layer:
-        snn.create_synapse(pre, post, weight=-0.1, stdp_enabled=False)
+        snn.create_synapse(pre, post, weight=-0.2, stdp_enabled=False)
 
 for pre in vanished_layer:
     for post in touch_go_layer:
@@ -152,7 +148,7 @@ def run_model(video):
     min_far_area = 1
     max_far_area = 100
 
-    min_near_area = 100 # 10 worked; was below
+    min_near_area = 100
     max_near_area = 10000
 
     far_diff_min = 4 # min change to count as a change & spike
@@ -227,12 +223,12 @@ def run_model(video):
         if far_y is not None and far_y_old is not None:
             far_dy = get_slope(far_y_old, far_y)
             if min_far_delta_away < far_dy < max_far_delta_away:
-                for n in ascent_far_layer:
+                for n in ascent_far_layer:                              # away
                     snn.add_spike(frame_idx, n, abs(far_dy))
 
             if min_far_delta_torwards < far_dy < max_far_delta_torwards:
                 descent_fired = True
-                for n in descent_far_layer:
+                for n in descent_far_layer:                             # torwards
                     snn.add_spike(frame_idx, n, abs(far_dy))
 
 
