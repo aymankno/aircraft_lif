@@ -120,6 +120,14 @@ Notes: Threshold issues likely caused by something changed in synapse creation. 
 
 Future changes: Finish implementation of decision layers, upload video9 and video10 to YouTube, reverse both videos to train reverse function & make chanegs as needed. Begin classification input, output, and decision layers. 
 
+### Refined decision layers, added parameters in run_model() - 10/18/2026
+Continued troubleshooting decision layers for future counting. Tests show that the model can distinguish events near-perfectly in testing footage when told that an event is happening, but struggle to find events in continous footage without false or missing counts. Adjusted recent_descent layer and takeoff layer synapses to a -0.2 weight to further penalize false takeoffs in touch & goes. Added additonal delta parameters for traffic departing torwards and away from camera, not yet filtered based on reverse traffic neuron layers.
+
+Notes: Consider additonal fixed positive synapse with recent_descent on landings. Additionally, consider an event layer to first detect if an event is ongoing, then add a max function to determine which event the model is most certain is occuring.
+
+Future changes: Finish implementation of decision layers, upload video9 and video10 to YouTube, reverse both videos to train reverse function & make chanegs as needed. Begin classification input, output, and decision layers. 
+
+
 ## Acknowledgements:
 
 ```bibtex
