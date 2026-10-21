@@ -127,6 +127,13 @@ Notes: Consider additonal fixed positive synapse with recent_descent on landings
 
 Future changes: Finish implementation of decision layers, upload video9 and video10 to YouTube, reverse both videos to train reverse function & make chanegs as needed. Begin classification input, output, and decision layers. 
 
+### Added blob detection input, output, and decision layers, new method to determine event type - 10/20/2026
+In past changelogs, decision layers' spikes fluctuated greatly throughout events. Choosing a single threshold was nearly impossible and would not have held up in long-term testing on unseen footage. Therefore, it would be significantly better to designate a neuron layer to determining if an event/aircraft is detected, then recording the start / end frames of the determined event, and then counting whichever decision layer had the most spikes. This is supported by evidence in prior tests in video9 revealing that events' correct decision layer would have the most spikes of any decision layer for all events except for takeoff events, although this is expected to be fixed in the next session. Although, this approach would require for the training of a "nothing" layer to prevent things like birds and other noise from being "forced" into being counted. To make a nothing layer, additonal input layers would need to be made. Today, all blob layers were created and mapped in run_model(), although troubleshooting is needed.
+
+Notes: Vanish spikes at 0, troubleshoot needed. Consider some type of negative weight on touch/go to prevent decision layer from having more spikes than takeoff layer, perhaps increase thresh?
+
+Future changes: Find video sharing platform capable of storing video9 and video10 (too big for YouTube), troubleshoot vanish layer and touch/go on takeoffs. Work on the new event classifier's counting and recording.
+
 
 ## Acknowledgements:
 
