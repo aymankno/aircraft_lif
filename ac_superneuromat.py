@@ -37,9 +37,9 @@ traffic_torwards_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_
 outputs = landing_layer + takeoff_layer + touch_go_layer + traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=28, leak=0.1, reset_state=0)]       # threshold will change based on tests for optimal thresh
-takeoff_decision = [snn.create_neuron(threshold=40, leak=0.1, reset_state=0)]
-touch_go_decision = [snn.create_neuron(threshold=137, leak=0.1, reset_state=0)]
+landing_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]       # threshold will change based on tests for optimal thresh
+takeoff_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]
+touch_go_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]
 
 traffic_away_decision = [snn.create_neuron(threshold=1)]
 traffic_torwards_decision = [snn.create_neuron(threshold=1)]
@@ -66,7 +66,7 @@ for pre in recent_descent_layer:
         snn.create_synapse(pre, post, weight=-0.2, stdp_enabled=False)
 
 for pre in vanished_layer:
-    for post in touch_go_layer:
+    for post in landing_layer:
         snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
 
 NEAR_BOX = (468, 1, 967, 747)
@@ -378,9 +378,10 @@ descent_takeoff_before = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 ascent_landing_before = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
 ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
-vanish_touch_go_before = W[np.ix_(vanish_ids, touch_go_ids)].mean()
+vanish_landing_before = W[np.ix_(vanish_ids, landing_ids)].mean()
 
 snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spikes
+
 print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
 print("Takeoff teacher:", teacher_count["takeoff"], "actual:", snn.ispikes[:, takeoff_ids].sum())
 print("Landing teachers", teacher_count["landing"], "actual:", snn.ispikes [:, landing_ids].sum())
@@ -394,7 +395,7 @@ descent_takeoff_after = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 ascent_landing_after = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
 ascent_takeoff_after = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
-vanish_touch_go_after = W[np.ix_(vanish_ids, touch_go_ids)].mean()
+vanish_landing_after = W[np.ix_(vanish_ids, landing_ids)].mean()
 
 print()
 print("BEFORE:")
@@ -402,7 +403,6 @@ print("Descent-landing:", descent_landing_before)
 print("Descent-takeoff:", descent_takeoff_before)
 print("Ascent-landing:", ascent_landing_before)
 print("Ascent-takeoff:", ascent_takeoff_before)
-print("Vanish-touch/go:", vanish_touch_go_before)
 
 print()
 
@@ -412,17 +412,19 @@ print("Descent-landing:", descent_landing_after, "percent change:", ((descent_la
 print("Descent-takeoff:", descent_takeoff_after, "percent change:", ((descent_takeoff_after - descent_takeoff_before) / descent_takeoff_before) * 100)
 print("Ascent-landing:", ascent_landing_after, "percent change:", ((ascent_landing_after - ascent_landing_before) / ascent_landing_before) * 100)
 print("Ascent-takeoff:", ascent_takeoff_after, "percent change:", ((ascent_takeoff_after - ascent_takeoff_before) / ascent_takeoff_before) * 100)
-print("Vanish-touch/go:", vanish_touch_go_after, "percent change:", ((vanish_touch_go_after - vanish_touch_go_before) / vanish_touch_go_before) * 100)
+print("Vanish-landing:", vanish_landing_after, "percent change:", (vanish_landing_after - vanish_landing_before) / vanish_landing_before * 100)
 print()
 
 
 ### VIDEO TESTING
+# video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
 print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
-# video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
+snn.reset()                                                              # to clear spike history for accurate spike counts.
 backSub = cv2.createBackgroundSubtractorMOG2()
 
 frame_num, video_start = run_model(video9)
+snn.simulate(time_steps=frame_num)
 
 print()
 print("NEAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_near_ids ].sum())
@@ -435,7 +437,7 @@ print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_
 print("Touch/go layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
 print()
 
-rows = snn.ispikes[video_start : video_start + frame_num]
+rows = snn.ispikes[0 : frame_num]
 
 landings    = rows[:, landing_decision[0].idx].sum()
 takeoffs    = rows[:, takeoff_decision[0].idx].sum()
@@ -452,8 +454,9 @@ measure = {
     "landing":  landing_decision_ids,
     "takeoff":  takeoff_decision_ids,
     "touch/go": touch_go_decision_ids,
-    "traffic away":   traffic_away_ids,
-    "traffic torwards": traffic_torwards_ids
+    "landing_layer": landing_ids,
+    "takeoff_layer": takeoff_ids,
+    "touch_go_layer": touch_go_ids,
 }
 
 labels = ["takeoff", "landing", "touch/go"]
