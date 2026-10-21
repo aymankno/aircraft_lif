@@ -19,7 +19,7 @@ grow_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 shrink_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
 recent_descent_layer = [snn.create_neuron(threshold=0.5)]                           # one neuron because recent_descent is yes/no
-vanished_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(38)]    # 38 neurons to make the layer into a timer, one neuron / sec
+vanished_layer = [snn.create_neuron(threshold=(0.5)) for i in range(45)]    # 45 neurons to make the layer into a timer, one neuron / sec
 
 blob_detected_layer = [snn.create_neuron(threshold=0.5)]
 
