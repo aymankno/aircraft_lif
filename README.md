@@ -134,6 +134,12 @@ Notes: Vanish spikes at 0, troubleshoot needed. Consider some type of negative w
 
 Future changes: Find video sharing platform capable of storing video9 and video10 (too big for YouTube), troubleshoot vanish layer and touch/go on takeoffs. Work on the new event classifier's counting and recording.
 
+### Added segment logging for frames where aircraft detected, fixed vanish layer
+To prepare for the future recording-count feature, added segement logging for the model to identify aircraft to then identify event type. Currently, the model is counting 36 movements in video9 (18 movements). This supports the idea of adding a "nothing" classification based on absolute size/area, speed, and other input layers. Additionally, touch & goes still dominate in tests, demonstrating significantly output layer spikes than landing and takeoff output layers on landing and takeoff events. Although, landing and takeoff input layers typically have more spikes than touch & goes do. This means that de-bugging this would not be hard, as you would just have to weaken the synapses from touch & go output to decision layers and strengthen landing and takeoff synapses. Also, fixed vanish layer after finding variable inconsistency making it impossible for vanish_layer to spike. Now demonstrating 18% change for vanish-landing synapses.
+
+Notes: Decrease synapse weight manually from touch & go output to decision, increase landing and takeoff. "Nothing" classification can be comprised of speed and area to filter birds, perhaps paired with future classification of aircraft?
+
+Future changes: Upload video9 and video10 to a video sharing platform, continue work on classifier counting & recording for final layer event classification
 
 ## Acknowledgements:
 
