@@ -170,15 +170,15 @@ def run_model(video):
     near_slope = 0.0913
 
     fps = cap.get(cv2.CAP_PROP_FPS)
-    descent_window = int(38 * fps) # how long recent_descent until leaked to 0
-    min_descent_frames = 5         # descent frames in a row before counted (for noise)
+    descent_window = int(45 * fps) # how long recent_descent until leaked to 0
     video_start = 0
 
     frames_since_descent = None
     frames_since_vanish = None
     descent_streak = 0
     was_descending = False
-    vanished_unseen_min = 3
+    recent_descent_frames = int(10 * fps)
+    min_descent_frames = 5
 
     near_y_old = None
     far_y_old = None
@@ -195,7 +195,7 @@ def run_model(video):
     frame_first_seen = None
     frame_disappeared = None
 
-    with open(f'{video}_aircraft_seen.csv', "w", newline="") as f:
+    with open(f'video9_aircraft_frames.csv', "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["start", "end"])
 
@@ -214,8 +214,9 @@ def run_model(video):
 
             if is_blob:
                 frames_plane_missing = 0
+                frame_disappeared = None
                 frames_plane_seen += 1
-                if frames_plane_seen == min_frames_plane_seen and frame_first_seen is not None:
+                if frames_plane_seen == min_frames_plane_seen and frame_first_seen is None:
                     frame_first_seen = frame_idx
                 elif frames_plane_seen > min_frames_plane_seen:
                     plane_seen = True
@@ -307,14 +308,16 @@ def run_model(video):
                 frames_since_descent = 0
 
             if plane_seen and is_blob:
-                was_descending = frames_since_descent is not None and frames_since_descent <= 3
-            elif plane_missing and was_descending:
+                was_descending = frames_since_descent is not None and frames_since_descent <= recent_descent_frames
+
+            elif plane_missing and was_descending: 
                 frames_since_vanish = 0
                 was_descending = False
 
             if frames_since_descent is not None and frames_since_descent < descent_window:
                 for n in recent_descent_layer:
                     snn.add_spike(frame_idx, n, 13)
+
             if frames_since_vanish is not None:
                 sec = int(frames_since_vanish // fps)
                 if sec < len(vanished_layer):
@@ -330,7 +333,7 @@ def run_model(video):
             frame_idx += 1
 
         if frames_plane_missing == 0:
-            frame_disappeared = frame_idx - min_frames_plane_seen + 1
+            frame_disappeared = frame_idx - 1
 
         if frame_first_seen is not None:
             writer.writerow([frame_first_seen, frame_disappeared])
