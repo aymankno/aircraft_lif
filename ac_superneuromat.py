@@ -159,6 +159,8 @@ def run_model(video):
     min_far_delta_torwards = -1.5
     max_far_delta_torwards = -0.25
 
+    far_dy_scale = 4.0               # far |dy| (0.25-1.5, moves in 0.5 px steps) -> near's 1-6 range, so far motion fires the thermometer layers
+
     min_near_delta_torwards = 1.0
     max_near_delta_torwards = 6.9
 
@@ -278,13 +280,12 @@ def run_model(video):
                     far_dy = get_slope(far_y_old, far_y)
                     if min_far_delta_away < far_dy < max_far_delta_away:
                         for n in ascent_far_layer:                              # away
-                            snn.add_spike(frame_idx, n, abs(far_dy))
+                            snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
                     if min_far_delta_torwards < far_dy < max_far_delta_torwards:
                         descent_fired = True
                         for n in descent_far_layer:                             # torwards
-                            snn.add_spike(frame_idx, n, abs(far_dy))
-
+                            snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
                     if far_area > 1:
                         if old_far_area is None:
@@ -426,8 +427,8 @@ W = snn.weight_mat()
 descent_landing_before = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
 descent_takeoff_before = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 
-ascent_landing_before = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
-ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
+ascent_landing_before = W[np.ix_(ascent_far_ids[:11], landing_ids)].mean()
+ascent_takeoff_before = W[np.ix_(ascent_far_ids[:11], takeoff_ids)].mean()
 
 vanish_landing_before = W[np.ix_(vanish_ids, landing_ids)].mean()
 
@@ -444,8 +445,8 @@ W = snn.weight_mat() # saves the NEW weights after training from training spikes
 descent_landing_after = W[np.ix_(descent_near_ids[:11], landing_ids)].mean()
 descent_takeoff_after = W[np.ix_(descent_near_ids[:11], takeoff_ids)].mean()
 
-ascent_landing_after = W[np.ix_(ascent_far_ids[:2], landing_ids)].mean()
-ascent_takeoff_after = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
+ascent_landing_after = W[np.ix_(ascent_far_ids[:11], landing_ids)].mean()
+ascent_takeoff_after = W[np.ix_(ascent_far_ids[:11], takeoff_ids)].mean()
 
 vanish_landing_after = W[np.ix_(vanish_ids, landing_ids)].mean()
 
