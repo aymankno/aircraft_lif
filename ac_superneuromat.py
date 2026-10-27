@@ -2,7 +2,6 @@
 from superneuromat import SNN
 import cv2
 import numpy as np
-import pandas as pd
 import csv
 
 rng = np.random.default_rng(0)
@@ -25,7 +24,9 @@ vanished_layer = [snn.create_neuron(threshold=(0.5)) for i in range(45)]    # 45
 blob_detected_layer = [snn.create_neuron(threshold=0.5)]
 
 learning_inputs = descent_near_layer + ascent_near_layer +\
-         descent_far_layer + ascent_far_layer + grow_layer + shrink_layer
+         descent_far_layer + ascent_far_layer
+
+sizing_inputs = grow_layer + shrink_layer
 
 memory_inputs = recent_descent_layer + vanished_layer + blob_detected_layer
 
@@ -39,10 +40,12 @@ traffic_torwards_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_
 
 aircraft_detected_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
 
-outputs = landing_layer + takeoff_layer + touch_go_layer + traffic_away_layer + traffic_torwards_layer + aircraft_detected_layer
+event_outputs = landing_layer + takeoff_layer + touch_go_layer # + aircraft_detected_layer
+
+sizing_outputs = traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]       # threshold will change based on tests for optimal thresh
+landing_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]       # threshold will change based on tests for optimal cthresh
 takeoff_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]
 touch_go_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]
 
@@ -66,12 +69,16 @@ for layer, decision in output_decisions:
             snn.create_synapse(pre, post, weight=1.0, stdp_enabled=False)
 
 for pre in learning_inputs:
-    for post in outputs:
+    for post in event_outputs:
         snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
+
+for pre in sizing_inputs:
+    for post in sizing_outputs:
+        snn.create_synapse(pre, post, weight=1.0, stdp_enabled=False)
 
 for pre in recent_descent_layer:
     for post in takeoff_layer:
-        snn.create_synapse(pre, post, weight=-0.2, stdp_enabled=False)
+        snn.create_synapse(pre, post, weight=-0.1, stdp_enabled=False)    # must not exceed output leak (0.1), or state sinks without bound
 
 for pre in vanished_layer:
     for post in landing_layer:
@@ -107,7 +114,6 @@ def get_slope(y_old, y_new):
 print()
 print("TRAINING:")
 video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
-pd.read_csv(video9_labels)
 
 
 defined_outputs = {"takeoff": takeoff_layer,
@@ -141,7 +147,6 @@ with open(video9_labels) as f:
 
 def run_model(video):
     cap = cv2.VideoCapture(video)
-    global backSub
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
@@ -426,12 +431,13 @@ ascent_takeoff_before = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
 vanish_landing_before = W[np.ix_(vanish_ids, landing_ids)].mean()
 
-snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spikes
+
+snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spike
 
 print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
-print("Takeoff teacher:", teacher_count["takeoff"], "actual:", snn.ispikes[:, takeoff_ids].sum())
-print("Landing teachers", teacher_count["landing"], "actual:", snn.ispikes [:, landing_ids].sum())
-print("Touch/go teacher:", teacher_count["touch/go"], "actual:", snn.ispikes[:, touch_go_ids].sum())
+print("Takeoff teacher:", teacher_count["takeoff"] * 10, "actual:", snn.ispikes[:, takeoff_ids].sum())
+print("Landing teachers", teacher_count["landing"] * 10, "actual:", snn.ispikes [:, landing_ids].sum())
+print("Touch/go teacher:", teacher_count["touch/go"] * 10, "actual:", snn.ispikes[:, touch_go_ids].sum())
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
@@ -443,12 +449,15 @@ ascent_takeoff_after = W[np.ix_(ascent_far_ids[:2], takeoff_ids)].mean()
 
 vanish_landing_after = W[np.ix_(vanish_ids, landing_ids)].mean()
 
+
+
 print()
 print("BEFORE:")
 print("Descent-landing:", descent_landing_before)
 print("Descent-takeoff:", descent_takeoff_before)
 print("Ascent-landing:", ascent_landing_before)
 print("Ascent-takeoff:", ascent_takeoff_before)
+print("Vanish-landing:", vanish_landing_before)
 
 print()
 
@@ -467,7 +476,6 @@ print()
 print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 snn.reset()                                                              # to clear spike history for accurate spike counts.
-backSub = cv2.createBackgroundSubtractorMOG2()
 
 frame_num, video_start = run_model(video9)
 snn.simulate(time_steps=frame_num)
