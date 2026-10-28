@@ -88,6 +88,25 @@ for pre in blob_detected_layer:
     for post in aircraft_detected_layer:
         snn.create_synapse(pre, post, weight=1.0, stdp_enabled=False)
 
+# Feature neurons: fixed logic (no STDP, leak=inf so each is a same-frame detector)
+# takeoff  = ascent AND NOT recent_descent
+# touch/go = ascent AND recent_descent
+takeoff_feat = snn.create_neuron(threshold=0.5)
+touch_go_feat = snn.create_neuron(threshold=1.0)
+
+ascent_any = [ascent_near_layer[0], ascent_far_layer[0]]     # any ascent this frame
+for pre in ascent_any:
+    snn.create_synapse(pre, takeoff_feat, weight=0.6, stdp_enabled=False)    # 1 ascent alone fires takeoff_feat
+    snn.create_synapse(pre, touch_go_feat, weight=0.4, stdp_enabled=False)   # 2 ascents = 0.8, not enough alone
+
+for pre in recent_descent_layer:
+    snn.create_synapse(pre, takeoff_feat, weight=-2.0, stdp_enabled=False)
+    snn.create_synapse(pre, touch_go_feat, weight=0.7, stdp_enabled=False) 
+
+for feat, layer in [(takeoff_feat, takeoff_layer), (touch_go_feat, touch_go_layer)]:
+    for post in layer:
+        snn.create_synapse(feat, post, weight=0.6, stdp_enabled=True)
+
 NEAR_BOX = (468, 1, 967, 747)
 FAR_BOX  = (974, 604, 265, 151)
 
