@@ -2,7 +2,6 @@
 from superneuromat import SNN
 import cv2
 import numpy as np
-import csv
 
 rng = np.random.default_rng(0)
 
@@ -47,9 +46,11 @@ event_outputs = landing_layer + takeoff_layer + touch_go_layer # + aircraft_dete
 sizing_outputs = traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-landing_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]       # threshold will change based on tests for optimal cthresh
-takeoff_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]
-touch_go_decision = [snn.create_neuron(threshold=1, leak=0.1, reset_state=0)]
+# Event decisions integrate their output layer and fire once per event; the long refractory period stops repeats
+decision_fps = 30
+landing_decision = [snn.create_neuron(threshold=5, leak=0.05, reset_state=0, refractory_period=75 * decision_fps)]
+takeoff_decision = [snn.create_neuron(threshold=10, leak=0.025, reset_state=0, refractory_period=45 * decision_fps)]
+touch_go_decision = [snn.create_neuron(threshold=10, leak=0.05, reset_state=0, refractory_period=75 * decision_fps)]
 
 traffic_away_decision = [snn.create_neuron(threshold=1)]
 traffic_torwards_decision = [snn.create_neuron(threshold=1)]
@@ -58,10 +59,16 @@ aircraft_detected_decision = [snn.create_neuron(threshold=1)]
 
 decision_neurons = landing_decision + takeoff_decision + touch_go_decision + traffic_away_decision + traffic_torwards_decision
 
-output_decisions = [(landing_layer, landing_decision),
-                    (takeoff_layer, takeoff_decision),
-                    (touch_go_layer, touch_go_decision),
-                    (traffic_away_layer, traffic_away_decision),
+event_output_decisions = [(landing_layer, landing_decision),
+                          (takeoff_layer, takeoff_decision),
+                          (touch_go_layer, touch_go_decision)]
+
+for layer, decision in event_output_decisions:
+    for pre in layer:
+        for post in decision:
+            snn.create_synapse(pre, post, weight=0.1, stdp_enabled=False)
+
+output_decisions = [(traffic_away_layer, traffic_away_decision),
                     (traffic_torwards_layer, traffic_torwards_decision),
                     (aircraft_detected_layer, aircraft_detected_decision)]
 
@@ -238,162 +245,160 @@ def run_model(video):
     frame_first_seen = None
     frame_disappeared = None
 
-    with open(f'video9_aircraft_frames.csv', "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["start", "end"])
+    segments = []                    # (first_seen, disappeared) per aircraft segment, kept in memory
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            mask = backSub.apply(gray)
-            near_mask = mask.copy()
-            near_mask[604:755, 974:1239] = 0
-            near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
-            far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        mask = backSub.apply(gray)
+        near_mask = mask.copy()
+        near_mask[604:755, 974:1239] = 0
+        near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
+        far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
 
-            is_blob = near_y is not None or far_y is not None
+        is_blob = near_y is not None or far_y is not None
 
-            if is_blob:
-                frames_plane_missing = 0
+        if is_blob:
+            frames_plane_missing = 0
+            frame_disappeared = None
+            frames_plane_seen += 1
+            if frames_plane_seen == min_frames_plane_seen and frame_first_seen is None:
+                frame_first_seen = frame_idx
+            elif frames_plane_seen > min_frames_plane_seen:
+                plane_seen = True
+                plane_missing = False
+        else:
+            frames_plane_seen = 0
+            if frames_plane_missing == 0 and frame_disappeared is None:
+                frame_disappeared = frame_idx
+            frames_plane_missing += 1
+            if frames_plane_missing == min_frames_plane_missing and frame_first_seen is not None:
+                segments.append((frame_first_seen, frame_disappeared))
+                frame_first_seen = None
                 frame_disappeared = None
-                frames_plane_seen += 1
-                if frames_plane_seen == min_frames_plane_seen and frame_first_seen is None:
-                    frame_first_seen = frame_idx
-                elif frames_plane_seen > min_frames_plane_seen:
-                    plane_seen = True
-                    plane_missing = False
-            else:
-                frames_plane_seen = 0
-                if frames_plane_missing == 0 and frame_disappeared is None:
-                    frame_disappeared = frame_idx
-                frames_plane_missing += 1
-                if frames_plane_missing == min_frames_plane_missing and frame_first_seen is not None:
-                    writer.writerow([frame_first_seen, frame_disappeared])
-                    frame_first_seen = None
-                    frame_disappeared = None
 
-                elif frames_plane_missing > min_frames_plane_missing:
-                    plane_missing = True
-                    plane_seen = False
+            elif frames_plane_missing > min_frames_plane_missing:
+                plane_missing = True
+                plane_seen = False
 
-            if plane_seen:
-                for n in blob_detected_layer:
-                    snn.add_spike(frame_idx, n, 13)
+        if plane_seen:
+            for n in blob_detected_layer:
+                snn.add_spike(frame_idx, n, 13)
 
-            descent_fired = False
+        descent_fired = False
 
-            if plane_seen:
-                if near_y is not None and near_y_old is not None:
-                    near_dy = get_slope(near_y_old, near_y)
-                    if min_near_delta_away < near_dy < max_near_delta_away:
-                        descent_fired = True
-                        for n in descent_near_layer:                                        # away
-                            snn.add_spike(frame_idx, n, abs(near_dy))
+        if plane_seen:
+            if near_y is not None and near_y_old is not None:
+                near_dy = get_slope(near_y_old, near_y)
+                if min_near_delta_away < near_dy < max_near_delta_away:
+                    descent_fired = True
+                    for n in descent_near_layer:                                        # away
+                        snn.add_spike(frame_idx, n, abs(near_dy))
 
-                    elif  min_near_delta_torwards < near_dy < max_near_delta_torwards:
-                        for n in ascent_near_layer:                                         # torwards
-                            snn.add_spike(frame_idx, n, abs(near_dy))
+                elif  min_near_delta_torwards < near_dy < max_near_delta_torwards:
+                    for n in ascent_near_layer:                                         # torwards
+                        snn.add_spike(frame_idx, n, abs(near_dy))
 
-                    if near_area > min_near_area:
-                        if old_near_area is None:
-                            old_near_area = near_area
-                        diff_near_area = near_area - old_near_area
+                if near_area > min_near_area:
+                    if old_near_area is None:
                         old_near_area = near_area
-                        if diff_near_area > near_diff_min:
-                            value = 1 + (diff_near_area - near_diff_min) * near_slope
-                            for n in grow_layer:
-                                snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
-                        elif diff_near_area < -near_diff_min:
-                            value = 1 + (-diff_near_area - near_diff_min) * near_slope
-                            for n in shrink_layer:
-                                snn.add_spike(frame_idx, n, value, exist="add")
+                    diff_near_area = near_area - old_near_area
+                    old_near_area = near_area
+                    if diff_near_area > near_diff_min:
+                        value = 1 + (diff_near_area - near_diff_min) * near_slope
+                        for n in grow_layer:
+                            snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
+                    elif diff_near_area < -near_diff_min:
+                        value = 1 + (-diff_near_area - near_diff_min) * near_slope
+                        for n in shrink_layer:
+                            snn.add_spike(frame_idx, n, value, exist="add")
 
 
 
-                if far_y is not None and far_y_old is not None:
-                    far_dy = get_slope(far_y_old, far_y)
-                    if min_far_delta_away < far_dy < max_far_delta_away:
-                        for n in ascent_far_layer:                              # away
-                            snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
+            if far_y is not None and far_y_old is not None:
+                far_dy = get_slope(far_y_old, far_y)
+                if min_far_delta_away < far_dy < max_far_delta_away:
+                    for n in ascent_far_layer:                              # away
+                        snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
-                    if min_far_delta_torwards < far_dy < max_far_delta_torwards:
-                        descent_fired = True
-                        for n in descent_far_layer:                             # torwards
-                            snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
+                if min_far_delta_torwards < far_dy < max_far_delta_torwards:
+                    descent_fired = True
+                    for n in descent_far_layer:                             # torwards
+                        snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
-                    if far_area > 1:
-                        if old_far_area is None:
-                            old_far_area = far_area
-                        diff_far_area = far_area - old_far_area
+                if far_area > 1:
+                    if old_far_area is None:
                         old_far_area = far_area
-                        if diff_far_area > far_diff_min:
-                            value = 1 + (diff_far_area - far_diff_min) * far_slope
-                            for n in grow_layer:
-                                snn.add_spike(frame_idx, n, value, exist='add')
-                        elif diff_far_area < -far_diff_min:
-                            value = 1 + (-diff_far_area - far_diff_min) * far_slope
-                            for n in shrink_layer:
-                                snn.add_spike(frame_idx, n, value, exist='add')
+                    diff_far_area = far_area - old_far_area
+                    old_far_area = far_area
+                    if diff_far_area > far_diff_min:
+                        value = 1 + (diff_far_area - far_diff_min) * far_slope
+                        for n in grow_layer:
+                            snn.add_spike(frame_idx, n, value, exist='add')
+                    elif diff_far_area < -far_diff_min:
+                        value = 1 + (-diff_far_area - far_diff_min) * far_slope
+                        for n in shrink_layer:
+                            snn.add_spike(frame_idx, n, value, exist='add')
 
-            if frames_since_descent is not None:
-                frames_since_descent += 1
-            if frames_since_vanish is not None:
-                frames_since_vanish += 1
+        if frames_since_descent is not None:
+            frames_since_descent += 1
+        if frames_since_vanish is not None:
+            frames_since_vanish += 1
 
-            if descent_fired:
-                descent_streak += 1
-            else:
-                descent_streak = 0
-            if descent_streak >= min_descent_frames:
-                frames_since_descent = 0
+        if descent_fired:
+            descent_streak += 1
+        else:
+            descent_streak = 0
+        if descent_streak >= min_descent_frames:
+            frames_since_descent = 0
 
-            if plane_seen and is_blob:
-                was_descending = frames_since_descent is not None and frames_since_descent <= recent_descent_frames
+        if plane_seen and is_blob:
+            was_descending = frames_since_descent is not None and frames_since_descent <= recent_descent_frames
 
-            elif plane_missing and was_descending: 
-                frames_since_vanish = 0
-                was_descending = False
+        elif plane_missing and was_descending: 
+            frames_since_vanish = 0
+            was_descending = False
 
-            if frames_since_descent is not None and frames_since_descent < descent_window:
-                for n in recent_descent_layer:
-                    snn.add_spike(frame_idx, n, 13)
+        if frames_since_descent is not None and frames_since_descent < descent_window:
+            for n in recent_descent_layer:
+                snn.add_spike(frame_idx, n, 13)
 
-            if plane_seen and not was_plane_seen:
-                if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames:
-                    returned = True
-                    frames_since_vanish = None
-            was_plane_seen = plane_seen
-            if plane_missing:
-                returned = False
-            if returned:
-                for n in returned_layer:
-                    snn.add_spike(frame_idx, n, 13)
+        if plane_seen and not was_plane_seen:
+            if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames:
+                returned = True
+                frames_since_vanish = None
+        was_plane_seen = plane_seen
+        if plane_missing:
+            returned = False
+        if returned:
+            for n in returned_layer:
+                snn.add_spike(frame_idx, n, 13)
 
-            if frames_since_vanish is not None:
-                sec = int(frames_since_vanish // fps)
-                if sec < len(vanished_layer):
-                    snn.add_spike(frame_idx, vanished_layer[sec], 13)
+        if frames_since_vanish is not None:
+            sec = int(frames_since_vanish // fps)
+            if sec < len(vanished_layer):
+                snn.add_spike(frame_idx, vanished_layer[sec], 13)
 
-            if near_y is None:
-                old_near_area = None
-            if far_y is None:
-                old_far_area = None
+        if near_y is None:
+            old_near_area = None
+        if far_y is None:
+            old_far_area = None
 
-            near_y_old = near_y
-            far_y_old = far_y
-            frame_idx += 1
+        near_y_old = near_y
+        far_y_old = far_y
+        frame_idx += 1
 
-        if frames_plane_missing == 0:
-            frame_disappeared = frame_idx - 1
+    if frames_plane_missing == 0:
+        frame_disappeared = frame_idx - 1
 
-        if frame_first_seen is not None:
-            writer.writerow([frame_first_seen, frame_disappeared])
+    if frame_first_seen is not None:
+        segments.append((frame_first_seen, frame_disappeared))
 
-        return frame_idx, video_start
+    return frame_idx, video_start, segments
     
-frame_idx, _ = run_model(video9)
+frame_idx, _, _ = run_model(video9)
 
 # Near
 descent_near_ids = []
@@ -525,7 +530,7 @@ print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 snn.reset()                                                              # to clear spike history for accurate spike counts.
 
-frame_num, video_start = run_model(video9)
+frame_num, video_start, segments = run_model(video9)
 snn.simulate(time_steps=frame_num)
 
 print()
