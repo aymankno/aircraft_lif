@@ -134,12 +134,19 @@ Notes: Vanish spikes at 0, troubleshoot needed. Consider some type of negative w
 
 Future changes: Find video sharing platform capable of storing video9 and video10 (too big for YouTube), troubleshoot vanish layer and touch/go on takeoffs. Work on the new event classifier's counting and recording.
 
-### Added segment logging for frames where aircraft detected, fixed vanish layer
+### Added segment logging for frames where aircraft detected, fixed vanish layer - 10/21/2026
 To prepare for the future recording-count feature, added segement logging for the model to identify aircraft to then identify event type. Currently, the model is counting 36 movements in video9 (18 movements). This supports the idea of adding a "nothing" classification based on absolute size/area, speed, and other input layers. Additionally, touch & goes still dominate in tests, demonstrating significantly output layer spikes than landing and takeoff output layers on landing and takeoff events. Although, landing and takeoff input layers typically have more spikes than touch & goes do. This means that de-bugging this would not be hard, as you would just have to weaken the synapses from touch & go output to decision layers and strengthen landing and takeoff synapses. Also, fixed vanish layer after finding variable inconsistency making it impossible for vanish_layer to spike. Now demonstrating 18% change for vanish-landing synapses.
 
 Notes: Decrease synapse weight manually from touch & go output to decision, increase landing and takeoff. "Nothing" classification can be comprised of speed and area to filter birds, perhaps paired with future classification of aircraft?
 
 Future changes: Upload video9 and video10 to a video sharing platform, continue work on classifier counting & recording for final layer event classification
+
+### Added return state, landing, touch & go, and feature neurons, and refined decision layers - 10/27/2026
+After minor bug fixes on 10/26 (not in changelog; minor), it grew evident that current architecture would simply not work for classification. On takeoff events, for instance, takeoff and touch & goes would recieve the exact same inputs from ascents, yet touch/go would get inputs from additional layers. This led to the creation of new architecture which can be imagined as a table. On touch & go events, an ascent happens after a plane descented, disappeared, and then appeared. On takeoffs, an ascent happens and nothing before it happened. On landings, a descent happens and the plane never returns. This is the simplest way to describe takeoffs, touch & goes, and landings. So, for the neural layer, I created new layers referred to as takeoff_feat, landing_feat, and touch_go_feat. These layers represent those representations, each charged by the simplest description of each designated event. Some inputs need to be fixed, though, like recent descent window. Additionally, adjusted decision layers with custom leaks and refractory periods based on tests, set landing decision to smaller thresh in part due to shorter average event length.
+
+Notes: Biggest issue is window length, perhaps change to when_left or when_plane_left? Change python logic to neuron(s) where possible to maximize neuromorphic-icity of model.
+
+Future changes: Test on video10, upload videos to video sharing platform, add a very small Aneg for STDP. Consider future uses of STDP, including during real deployment. Refer to past "Future changes" sections for more.
 
 ## Acknowledgements:
 
