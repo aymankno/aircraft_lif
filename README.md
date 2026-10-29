@@ -7,8 +7,8 @@ V2 = ac_superneuromat.py - SuperNeuroMAT spiking neural network
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
-Latest changes (10/27):
-Added takeoff, landing, and touch/go feature layers to represent basic description of each event, for instance, takeoff_feat only firing when an ascent occurs with no prior descent and subsequent vanishing. Also, removed csv label overwriting, although planning to return for video10 testing when current model is strong enough. 
+Latest changes (10/28) - Accumulative evidence layers, gate neurons, and video10_labels.csv initial commit:
+Added accumulative "evidence" layers, gates, and introduced new logic to SNN. Evidence layers, similar to output layers, are layers that collect evidence over time from output layers to send to decision layers. Although, they are different because of much smaller leaks, allowing for collected evidence to remain relevant. When passed threshold, evidence layers fire decision layer neurons once. Gates close, and for the rest of the time a plane/event is detected, no decision layers can fire. This is improved human-like logic, likely to be used for future classifcation of aircraft. Additonally, made video10_labels storing the same data as video9_labels, just for video10 events.
 
 ## License
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
