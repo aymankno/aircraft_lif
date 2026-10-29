@@ -21,6 +21,8 @@ recent_descent_layer = [snn.create_neuron(threshold=0.5)]                   # on
 vanished_layer = [snn.create_neuron(threshold=(0.5)) for i in range(45)]    # 45 neurons to make the layer into a timer, one neuron / sec
 vanish_dead_sec = 20                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
 returned_layer = [snn.create_neuron(threshold=0.5)]                         # on while a vanished plane is back (came back after the dead zone)
+plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
+plane_gone_layer = [snn.create_neuron(threshold=0.5)]                       # one-frame pulse when the plane has left; unlocks decision gates
 
 blob_detected_layer = [snn.create_neuron(threshold=0.5)]
 
@@ -29,7 +31,7 @@ learning_inputs = descent_near_layer + ascent_near_layer +\
 
 sizing_inputs = grow_layer + shrink_layer
 
-memory_inputs = recent_descent_layer + vanished_layer + returned_layer + blob_detected_layer
+memory_inputs = recent_descent_layer + vanished_layer + returned_layer + plane_gone_layer + blob_detected_layer
 
 # 10 neurons each - output layers
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
@@ -46,11 +48,18 @@ event_outputs = landing_layer + takeoff_layer + touch_go_layer # + aircraft_dete
 sizing_outputs = traffic_away_layer + traffic_torwards_layer
 
 # Decision layers
-# Event decisions integrate their output layer and fire once per event; the long refractory period stops repeats
-decision_fps = 30
-landing_decision = [snn.create_neuron(threshold=5, leak=0.05, reset_state=0, refractory_period=75 * decision_fps)]
-takeoff_decision = [snn.create_neuron(threshold=10, leak=0.025, reset_state=0, refractory_period=45 * decision_fps)]
-touch_go_decision = [snn.create_neuron(threshold=10, leak=0.05, reset_state=0, refractory_period=75 * decision_fps)]
+# Event decisions: accumulator sums evidence over seconds -> decision fire once -> gate (which locks until the plane leaves)
+landing_accumulator = [snn.create_neuron(threshold=5, leak=0.05, reset_state=0)]
+takeoff_accumulator = [snn.create_neuron(threshold=10, leak=0.025, reset_state=0)]
+touch_go_accumulator = [snn.create_neuron(threshold=10, leak=0.05, reset_state=0)]
+
+landing_decision = [snn.create_neuron(threshold=0.5, refractory_period=2)]     # leak=inf: fires on accumulator AND NOT gate
+takeoff_decision = [snn.create_neuron(threshold=0.5, refractory_period=2)]
+touch_go_decision = [snn.create_neuron(threshold=0.5, refractory_period=2)]
+
+landing_gate = [snn.create_neuron(threshold=0.5)]                               # latch: on after deciding, off on plane_gone
+takeoff_gate = [snn.create_neuron(threshold=0.5)]
+touch_go_gate = [snn.create_neuron(threshold=0.5)]
 
 traffic_away_decision = [snn.create_neuron(threshold=1)]
 traffic_torwards_decision = [snn.create_neuron(threshold=1)]
@@ -59,14 +68,19 @@ aircraft_detected_decision = [snn.create_neuron(threshold=1)]
 
 decision_neurons = landing_decision + takeoff_decision + touch_go_decision + traffic_away_decision + traffic_torwards_decision
 
-event_output_decisions = [(landing_layer, landing_decision),
-                          (takeoff_layer, takeoff_decision),
-                          (touch_go_layer, touch_go_decision)]
+event_decisions = [(landing_layer, landing_accumulator, landing_decision, landing_gate),
+                   (takeoff_layer, takeoff_accumulator, takeoff_decision, takeoff_gate),
+                   (touch_go_layer, touch_go_accumulator, touch_go_decision, touch_go_gate)]
 
-for layer, decision in event_output_decisions:
+for layer, acc, decision, gate in event_decisions:
     for pre in layer:
-        for post in decision:
-            snn.create_synapse(pre, post, weight=0.1, stdp_enabled=False)
+        snn.create_synapse(pre, acc[0], weight=0.1, stdp_enabled=False)        # one full 10-neuron burst = 1.0
+    snn.create_synapse(acc[0], decision[0], weight=1.0, stdp_enabled=False)
+    snn.create_synapse(decision[0], gate[0], weight=1.0, stdp_enabled=False)    # deciding locks the gate
+    snn.create_synapse(gate[0], gate[0], weight=1.0, stdp_enabled=False)        # self-loop holds it
+    snn.create_synapse(gate[0], decision[0], weight=-2.0, stdp_enabled=False)   # locked gate blocks the decision
+    snn.create_synapse(plane_gone_layer[0], gate[0], weight=-5.0, stdp_enabled=False)           # plane left? unlock
+    snn.create_synapse(plane_gone_layer[0], acc[0], weight=-0.5 * acc[0].threshold, stdp_enabled=False)  # clear leftover evidence
 
 output_decisions = [(traffic_away_layer, traffic_away_decision),
                     (traffic_torwards_layer, traffic_torwards_decision),
@@ -225,6 +239,8 @@ def run_model(video):
     vanish_frames = int(len(vanished_layer) * fps)  # timer length; after this nothing counts as returning
     returned = False
     descent_streak = 0
+    plane_gone_frames = int(plane_gone_sec * fps)
+    frames_confirmed_missing = 0     # frames since plane_missing turned on (noise won't reset it)
     was_descending = False
     recent_descent_frames = int(10 * fps)
     min_descent_frames = 5
@@ -370,7 +386,11 @@ def run_model(video):
                 returned = True
                 frames_since_vanish = None
         was_plane_seen = plane_seen
-        if plane_missing:
+        frames_confirmed_missing = frames_confirmed_missing + 1 if plane_missing else 0
+        if frames_confirmed_missing == plane_gone_frames:               # plane has left? one pulse
+            for n in plane_gone_layer:
+                snn.add_spike(frame_idx, n, 13)
+        if frames_confirmed_missing >= plane_gone_frames:
             returned = False
         if returned:
             for n in returned_layer:
@@ -569,7 +589,7 @@ measure = {
 labels = ["takeoff", "landing", "touch/go"]
 results = {lab: {layer: [] for layer in measure} for lab in labels}
 
-lag = 30   # frames after the event ends to keep counting
+lag = {"takeoff": 5 * 30, "landing": 45 * 30, "touch/go": 5 * 30}   # frames after the event ends to keep counting (around 30 fps); landing decides around 40 sec after the plane leaves
 
 with open(video9_labels) as f:
     next(f)
@@ -580,7 +600,7 @@ with open(video9_labels) as f:
         start, end, area, movement, direction = [x.strip() for x in row.split(',')]
         start, end = int(start), int(end)
 
-        window = rows[start:end + lag]
+        window = rows[start:end + lag[movement]]
         for layer, ids in measure.items():
             avg_frame = window[:, ids].sum()
             results[movement][layer].append(avg_frame)
