@@ -545,12 +545,13 @@ print()
 
 
 ### VIDEO TESTING
-# video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
+video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
+video10_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video10_labels.csv"
 print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 snn.reset()                                                              # to clear spike history for accurate spike counts.
 
-frame_num, video_start, segments = run_model(video9)
+frame_num, video_start, segments = run_model(video10)
 snn.simulate(time_steps=frame_num)
 
 print()
@@ -591,7 +592,7 @@ results = {lab: {layer: [] for layer in measure} for lab in labels}
 
 lag = {"takeoff": 5 * 30, "landing": 45 * 30, "touch/go": 5 * 30}   # frames after the event ends to keep counting (around 30 fps); landing decides around 40 sec after the plane leaves
 
-with open(video9_labels) as f:
+with open(video10_labels) as f:
     next(f)
     for row in f:
         row = row.strip()
