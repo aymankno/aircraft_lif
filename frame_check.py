@@ -5,12 +5,12 @@ import csv
 video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
 
-cap = cv2.VideoCapture(video9)
+cap = cv2.VideoCapture(video10)
 backSub = cv2.createBackgroundSubtractorMOG2()
 key = None
 current_frame = 0
 
-with open('video9_labels.csv', "w", newline="") as f:
+with open('video10_labels.csv', "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["start", "end", "area", "movement", "type"])
 
@@ -35,7 +35,7 @@ with open('video9_labels.csv', "w", newline="") as f:
 
         while True:
             ret, frame = cap.read()
-            cv2.imshow("VIDEO9", frame)
+            cv2.imshow("VIDEO10", frame)
             key = cv2.waitKey(33) & 0xFF
             current_frame += 1
             if current_frame == frame_end:
