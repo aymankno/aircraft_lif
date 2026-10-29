@@ -148,6 +148,13 @@ Notes: Biggest issue is window length, perhaps change to when_left or when_plane
 
 Future changes: Test on video10, upload videos to video sharing platform, add a very small Aneg for STDP. Consider future uses of STDP, including during real deployment. Refer to past "Future changes" sections for more.
 
+### Added accumulator and gate neurons, initial commit of video10 csv, testing with video10 pending - 10/28/2026
+Added accumulator and gate neurons for more logic in the neural network. Accumulator neurons, like output neurons, accumulate evidence of certain events, then pushing to decision layers. These are different from output layers because of the very slow leak on the evidence layers. When decision layers fire, this triggers a "gate" layer which prevents additional firing while an aircraft is detected. Contrary to prior proposed architecture in which layers "record" and then get max, new architecture is a "first-come first-serve" style counting system. When plane_seen is True, the model looks for aircraft to determine if an event is ongoing. If it is, it considers that an unclassified event as long as the gate is open. When the gate closes, no more events can fire, even if there was a huge spike to a decision layer. This allows for improved accuracy and more logic in the neural network. Furthermore, used frame_check.py for video10 csv to get frames of layers and events. Initially, it wasn't working because landings would be marked as ended as soon as they were off-screen, meaning that vanish layers would never charge. Additionally, I forgot to change the scoring mechanism to video10_labels.csv. Testing on video10 and video9 hasn't been conducted yet due to potential concerns with thresholds to be fixed tommorow (when there is more time).
+
+Notes: Not yet tested on video9 nor video10. Video10 has 8 events, video9 has 18. Consider cleaning up code with classes, or with loops for things like IDs.
+
+Future changes: Attempted to upload video9 to YouTube, but was faced with an error. Planning to look into it and consider other video sharing platforms for video9 and video10.
+
 ## Acknowledgements:
 
 ```bibtex
