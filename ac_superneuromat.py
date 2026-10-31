@@ -19,6 +19,7 @@ shrink_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
 recent_descent_layer = [snn.create_neuron(threshold=0.5)]                   # one neuron because recent_descent is yes/no
 vanished_layer = [snn.create_neuron(threshold=(0.5)) for i in range(45)]    # 45 neurons to make the layer into a timer, one neuron / sec
+far_return_min_area = 20                                                    # far-box blob must be this big to count as the vanished plane returning
 vanish_dead_sec = 8                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
 returned_layer = [snn.create_neuron(threshold=0.5)]                         # on while a vanished plane is back (came back after the dead zone)
 plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
@@ -52,7 +53,7 @@ sizing_outputs = traffic_away_layer + traffic_torwards_layer
 # Decision layers
 # Event decisions: accumulator sums evidence over seconds -> decision fire once -> gate (which locks until the plane leaves)
 landing_accumulator = [snn.create_neuron(threshold=5, leak=0.05, reset_state=0)]
-takeoff_accumulator = [snn.create_neuron(threshold=10, leak=0.025, reset_state=0)]
+takeoff_accumulator = [snn.create_neuron(threshold=8, leak=0.025, reset_state=0)]
 touch_go_accumulator = [snn.create_neuron(threshold=10, leak=0.05, reset_state=0)]
 
 landing_decision = [snn.create_neuron(threshold=0.5, refractory_period=2)]     # leak=inf: fires on accumulator AND NOT gate
@@ -95,7 +96,7 @@ for layer, decision in output_decisions:
             snn.create_synapse(pre, post, weight=1.0, stdp_enabled=False)
 
 for pre in learning_inputs:
-    for post in event_outputs:
+    for post in landing_layer + takeoff_layer:          # touch/go is decided by returned; learned direction weights only added noise
         snn.create_synapse(pre, post, weight=rng.uniform(0.0035, 0.0084), stdp_enabled=True)
 
 for pre in sizing_inputs:
@@ -125,9 +126,11 @@ for pre in returned_layer:
     snn.create_synapse(pre, takeoff_feat, weight=-2.0, stdp_enabled=False)
     snn.create_synapse(pre, touch_go_feat, weight=1.1, stdp_enabled=False)    # back after vanishing = touch/go evidence on its own
 
+feature_weight = 0.6        # feature -> output weight used in testing
+feature_synapses = []       # kept at 0 during training (teacher-only learning), set to feature_weight after
 for feat, layer in [(takeoff_feat, takeoff_layer), (touch_go_feat, touch_go_layer)]:
     for post in layer:
-        snn.create_synapse(feat, post, weight=0.6, stdp_enabled=True)
+        feature_synapses.append(snn.create_synapse(feat, post, weight=0.0, stdp_enabled=False))
 
 # landing = still gone late in the vanish timer (no ascent)
 landing_sec = 39            # landing_feat fires once the timer passes this (longest touch/go gap in video 9 was 34 s)
@@ -142,7 +145,7 @@ for pre in ascent_any:
     snn.create_synapse(pre, landing_feat, weight=-2.0, stdp_enabled=False)  # climbing = not a landing
 
 for post in landing_layer:
-    snn.create_synapse(landing_feat, post, weight=0.6, stdp_enabled=True)
+    feature_synapses.append(snn.create_synapse(landing_feat, post, weight=0.0, stdp_enabled=False))
 
 NEAR_BOX = (468, 1, 967, 747)
 FAR_BOX  = (974, 604, 265, 151)
@@ -265,8 +268,8 @@ def run_model(video):
     frame_disappeared = None
 
     # per-box presence (same 2 s rules as the global state); the connectors below bridge the boxes
-    box = {b: {"seen": False, "was_seen": False, "missing": False, "n_seen": 0, "n_missing": 0, "n_confirmed": 0}
-           for b in ("near", "far")}
+    box = {b: {"seen": False, "was_seen": False, "missing": False, "n_seen": 0, "n_missing": 0, "n_confirmed": 0,
+               "areas": []} for b in ("near", "far")}
     gone_layer = {"near": near_gone_layer, "far": far_gone_layer}
     returned_box = None
 
@@ -285,14 +288,16 @@ def run_model(video):
 
         is_blob = near_y is not None or far_y is not None
 
-        for b, present in (("near", near_y is not None), ("far", far_y is not None)):
+        for b, present, area in (("near", near_y is not None, near_area), ("far", far_y is not None, far_area)):
             st = box[b]
             if present:
+                st["areas"] = (st["areas"] + [area])[-min_frames_plane_seen:]    # blob size over the confirmation window
                 st["n_missing"] = 0
                 st["n_seen"] += 1
                 if st["n_seen"] > min_frames_plane_seen:
                     st["seen"], st["missing"] = True, False
             else:
+                st["areas"] = []
                 st["n_seen"] = 0
                 st["n_missing"] += 1
                 if st["n_missing"] > min_frames_plane_missing:
@@ -406,7 +411,8 @@ def run_model(video):
         for b in ("near", "far"):
             st = box[b]
             if st["seen"] and not st["was_seen"]:
-                if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames:
+                plane_sized = b == "near" or np.median(st["areas"]) >= far_return_min_area
+                if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames and plane_sized:
                     returned = True
                     returned_box = b
                     returned_frames = 0
@@ -542,6 +548,9 @@ vanish_landing_before = W[np.ix_(vanish_ids, landing_ids)].mean()
 
 
 snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spike
+
+for syn in feature_synapses:                     # training done: switch the feature neurons on for testing
+    syn.weight = feature_weight
 
 print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
 print("Takeoff teacher:", teacher_count["takeoff"] * 10, "actual:", snn.ispikes[:, takeoff_ids].sum())
