@@ -243,11 +243,9 @@ def run_model(video):
     frames_since_vanish = None
     vanish_dead_zone = int(vanish_dead_sec * fps)   # reappearing sooner than this = a different aircraft, timer keeps running
     vanish_frames = int(len(vanished_layer) * fps)  # timer length; after this nothing counts as returning
-    returned = False
     descent_streak = 0
     plane_gone_frames = int(plane_gone_sec * fps)
     frames_confirmed_missing = 0     # frames since plane_missing turned on (noise won't reset it)
-    was_descending = False
     recent_descent_frames = int(10 * fps)
     min_descent_frames = 5
 
@@ -258,12 +256,17 @@ def run_model(video):
     frame_idx = 0
 
     plane_seen = False
-    was_plane_seen = False
+    plane_seen_neuron = snn.create_neuron(threshold=0.5)
+    plane_missing = False
+    plane_missing_neuron = snn.create_neuron(threshold=0.5)
+    was_descending = False
+    was_descending_neuron = snn.create_neuron(threshold=0.5)
+    returned = False
+
     frames_plane_seen = 0
     min_frames_plane_seen = int(2 * fps)
     frames_plane_missing = 0
     min_frames_plane_missing = int(2 * fps)
-    plane_missing = False
     frame_first_seen = None
     frame_disappeared = None
 
@@ -311,6 +314,7 @@ def run_model(video):
                 frame_first_seen = frame_idx
             elif frames_plane_seen > min_frames_plane_seen:
                 plane_seen = True
+                plane_seen_neuron.add_spike(frame_idx, 1.0)
                 plane_missing = False
         else:
             frames_plane_seen = 0
@@ -324,6 +328,7 @@ def run_model(video):
 
             elif frames_plane_missing > min_frames_plane_missing:
                 plane_missing = True
+                plane_missing_neuron.add_spike(frame_idx, 1.0)
                 plane_seen = False
 
         if plane_seen:
@@ -398,7 +403,9 @@ def run_model(video):
 
         # vanish: the descending plane (near box) disappears, even if the far box is busy
         if box["near"]["seen"] and near_y is not None:
-            was_descending = frames_since_descent is not None and frames_since_descent <= recent_descent_frames
+            if frames_since_descent is not None and frames_since_descent <= recent_descent_frames:
+                was_descending = True
+                was_descending_neuron.add_spike(frame_idx, 1.0)
         elif box["near"]["missing"] and was_descending:
             frames_since_vanish = 0
             was_descending = False
