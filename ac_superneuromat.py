@@ -223,7 +223,7 @@ def run_model(video):
     min_near_delta_torwards = 1.0
     max_near_delta_torwards = 6.9
 
-    min_far_area = 1
+    min_far_area = 10
     max_far_area = 100
 
     min_near_area = 100
@@ -610,51 +610,62 @@ print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_
 print("Touch/go layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
 print()
 
-rows = snn.ispikes[0 : frame_num]
+def test_video(video, video_label):
+    print(video.upper(), "TESTING")
+    snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False)
+    snn.reset()
 
-landings    = rows[:, landing_decision[0].idx].sum()
-takeoffs    = rows[:, takeoff_decision[0].idx].sum()
-touch_gos   = rows[:, touch_go_decision[0].idx].sum()
+    frame_num, video_start, segments = run_model(video)
+    snn.simulate(time_steps=frame_num)
+    rows = snn.ispikes[0 : frame_num]
 
-print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
-print("Operations:", landings + takeoffs + 2 * touch_gos)
+    landings    = rows[:, landing_decision[0].idx].sum()
+    takeoffs    = rows[:, takeoff_decision[0].idx].sum()
+    touch_gos   = rows[:, touch_go_decision[0].idx].sum()
 
-print("Landing at frames:", np.where(rows[:, landing_decision[0].idx])[0])
-print("Takeoff at frames:", np.where(rows[:, takeoff_decision[0].idx])[0])
-print("Touch & go at frames:", np.where(rows[:, touch_go_decision[0].idx])[0])
+    print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
+    print("Operations:", landings + takeoffs + 2 * touch_gos) # In official reporting, touch/go counts as 2 movements
 
-measure = {
-    "landing":  landing_decision_ids,
-    "takeoff":  takeoff_decision_ids,
-    "touch/go": touch_go_decision_ids,
-    "landing_layer": landing_ids,
-    "takeoff_layer": takeoff_ids,
-    "touch_go_layer": touch_go_ids,
-}
+    print("Landing at frames:", np.where(rows[:, landing_decision[0].idx])[0])
+    print("Takeoff at frames:", np.where(rows[:, takeoff_decision[0].idx])[0])
+    print("Touch & go at frames:", np.where(rows[:, touch_go_decision[0].idx])[0])
 
-labels = ["takeoff", "landing", "touch/go"]
-results = {lab: {layer: [] for layer in measure} for lab in labels}
+    measure = {
+        "landing":  landing_decision_ids,
+        "takeoff":  takeoff_decision_ids,
+        "touch/go": touch_go_decision_ids,
+        "landing_layer": landing_ids,
+        "takeoff_layer": takeoff_ids,
+        "touch_go_layer": touch_go_ids,
+    }
 
-lag = {"takeoff": 5 * 30, "landing": 45 * 30, "touch/go": 5 * 30}   # frames after the event ends to keep counting (around 30 fps); landing decides around 40 sec after the plane leaves
+    labels = ["takeoff", "landing", "touch/go"]
+    results = {lab: {layer: [] for layer in measure} for lab in labels}
 
-with open(video10_labels) as f:
-    next(f)
-    for row in f:
-        row = row.strip()
-        if not row:
-            continue
-        start, end, area, movement, direction = [x.strip() for x in row.split(',')]
-        start, end = int(start), int(end)
+    lag = {"takeoff": 5 * 30, "landing": 45 * 30, "touch/go": 5 * 30}   # frames after the event ends to keep counting (around 30 fps); landing decides around 40 sec after the plane leaves
+    lead = {"takeoff": 10 * 30, "landing": 0, "touch/go": 0} # for accurate scoring 
 
-        window = rows[start:end + lag[movement]]
-        for layer, ids in measure.items():
-            avg_frame = window[:, ids].sum()
-            results[movement][layer].append(avg_frame)
+    with open(video_label) as f:
+        next(f)
+        for row in f:
+            row = row.strip()
+            if not row:
+                continue
+            start, end, area, movement, direction = [x.strip() for x in row.split(',')]
+            start, end = int(start), int(end)
 
-for lab in labels:
-    print(f"\n{lab.upper()} events:")
-    for layer, vals in results[lab].items():
-        if not vals:
-            continue
-        v = np.array(vals)
-        print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
+            window = rows[start - lead[movement]:end + lag[movement]]
+            for layer, ids in measure.items():
+                avg_frame = window[:, ids].sum()
+                results[movement][layer].append(avg_frame)
+
+    for lab in labels:
+        print(f"\n{lab.upper()} events:")
+        for layer, vals in results[lab].items():
+            if not vals:
+                continue
+            v = np.array(vals)
+            print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
+
+test_video(video9, video9_labels)
+test_video(video10, video10_labels)
