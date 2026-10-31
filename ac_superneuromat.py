@@ -22,7 +22,9 @@ vanished_layer = [snn.create_neuron(threshold=(0.5)) for i in range(45)]    # 45
 vanish_dead_sec = 8                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
 returned_layer = [snn.create_neuron(threshold=0.5)]                         # on while a vanished plane is back (came back after the dead zone)
 plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
-plane_gone_layer = [snn.create_neuron(threshold=0.5)]                       # one-frame pulse when the plane has left; unlocks decision gates
+plane_gone_layer = [snn.create_neuron(threshold=0.5)]                       # one-frame pulse when BOTH boxes have been empty 15 s
+near_gone_layer = [snn.create_neuron(threshold=0.5)]                        # one-frame pulse when the near box has been empty 15 s
+far_gone_layer = [snn.create_neuron(threshold=0.5)]                         # one-frame pulse when the far box has been empty 15 s
 
 blob_detected_layer = [snn.create_neuron(threshold=0.5)]
 
@@ -31,7 +33,7 @@ learning_inputs = descent_near_layer + ascent_near_layer +\
 
 sizing_inputs = grow_layer + shrink_layer
 
-memory_inputs = recent_descent_layer + vanished_layer + returned_layer + plane_gone_layer + blob_detected_layer
+memory_inputs = recent_descent_layer + vanished_layer + returned_layer + plane_gone_layer + near_gone_layer + far_gone_layer + blob_detected_layer
 
 # 10 neurons each - output layers
 landing_layer = [snn.create_neuron(threshold=1.0, leak=0.1, refractory_period=10) for i in range(10)]
@@ -68,19 +70,20 @@ aircraft_detected_decision = [snn.create_neuron(threshold=1)]
 
 decision_neurons = landing_decision + takeoff_decision + touch_go_decision + traffic_away_decision + traffic_torwards_decision
 
-event_decisions = [(landing_layer, landing_accumulator, landing_decision, landing_gate),
-                   (takeoff_layer, takeoff_accumulator, takeoff_decision, takeoff_gate),
-                   (touch_go_layer, touch_go_accumulator, touch_go_decision, touch_go_gate)]
+# each gate unlocks when the box its event happens in empties: landing = near, takeoff = far, touch/go = both boxes
+event_decisions = [(landing_layer, landing_accumulator, landing_decision, landing_gate, near_gone_layer),
+                   (takeoff_layer, takeoff_accumulator, takeoff_decision, takeoff_gate, far_gone_layer),
+                   (touch_go_layer, touch_go_accumulator, touch_go_decision, touch_go_gate, plane_gone_layer)]
 
-for layer, acc, decision, gate in event_decisions:
+for layer, acc, decision, gate, gone in event_decisions:
     for pre in layer:
         snn.create_synapse(pre, acc[0], weight=0.1, stdp_enabled=False)        # one full 10-neuron burst = 1.0
     snn.create_synapse(acc[0], decision[0], weight=1.0, stdp_enabled=False)
     snn.create_synapse(decision[0], gate[0], weight=1.0, stdp_enabled=False)    # deciding locks the gate
     snn.create_synapse(gate[0], gate[0], weight=1.0, stdp_enabled=False)        # self-loop holds it
     snn.create_synapse(gate[0], decision[0], weight=-2.0, stdp_enabled=False)   # locked gate blocks the decision
-    snn.create_synapse(plane_gone_layer[0], gate[0], weight=-5.0, stdp_enabled=False)           # plane left? unlock
-    snn.create_synapse(plane_gone_layer[0], acc[0], weight=-0.5 * acc[0].threshold, stdp_enabled=False)  # clear leftover evidence
+    snn.create_synapse(gone[0], gate[0], weight=-5.0, stdp_enabled=False)           # plane left? unlock
+    snn.create_synapse(gone[0], acc[0], weight=-0.5 * acc[0].threshold, stdp_enabled=False)  # clear leftover evidence
 
 output_decisions = [(traffic_away_layer, traffic_away_decision),
                     (traffic_torwards_layer, traffic_torwards_decision),
@@ -261,6 +264,12 @@ def run_model(video):
     frame_first_seen = None
     frame_disappeared = None
 
+    # per-box presence (same 2 s rules as the global state); the connectors below bridge the boxes
+    box = {b: {"seen": False, "was_seen": False, "missing": False, "n_seen": 0, "n_missing": 0, "n_confirmed": 0}
+           for b in ("near", "far")}
+    gone_layer = {"near": near_gone_layer, "far": far_gone_layer}
+    returned_box = None
+
     segments = []                    # (first_seen, disappeared) per aircraft segment, kept in memory
 
     while True:
@@ -275,6 +284,19 @@ def run_model(video):
         far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
 
         is_blob = near_y is not None or far_y is not None
+
+        for b, present in (("near", near_y is not None), ("far", far_y is not None)):
+            st = box[b]
+            if present:
+                st["n_missing"] = 0
+                st["n_seen"] += 1
+                if st["n_seen"] > min_frames_plane_seen:
+                    st["seen"], st["missing"] = True, False
+            else:
+                st["n_seen"] = 0
+                st["n_missing"] += 1
+                if st["n_missing"] > min_frames_plane_missing:
+                    st["missing"], st["seen"] = True, False
 
         if is_blob:
             frames_plane_missing = 0
@@ -369,10 +391,10 @@ def run_model(video):
         if descent_streak >= min_descent_frames:
             frames_since_descent = 0
 
-        if plane_seen and is_blob:
+        # vanish: the descending plane (near box) disappears, even if the far box is busy
+        if box["near"]["seen"] and near_y is not None:
             was_descending = frames_since_descent is not None and frames_since_descent <= recent_descent_frames
-
-        elif plane_missing and was_descending: 
+        elif box["near"]["missing"] and was_descending:
             frames_since_vanish = 0
             was_descending = False
 
@@ -380,18 +402,28 @@ def run_model(video):
             for n in recent_descent_layer:
                 snn.add_spike(frame_idx, n, 13)
 
-        if plane_seen and not was_plane_seen:
-            if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames:
-                returned = True
-                returned_frames = 0
-                frames_since_vanish = None
+        # returned: a plane is confirmed in EITHER box during the vanish window -> same aircraft back
+        for b in ("near", "far"):
+            st = box[b]
+            if st["seen"] and not st["was_seen"]:
+                if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames:
+                    returned = True
+                    returned_box = b
+                    returned_frames = 0
+                    frames_since_vanish = None
+            st["was_seen"] = st["seen"]
+            # per-box gone pulse; clears returned if it was this box's plane
+            st["n_confirmed"] = st["n_confirmed"] + 1 if st["missing"] else 0
+            if st["n_confirmed"] == plane_gone_frames:
+                for n in gone_layer[b]:
+                    snn.add_spike(frame_idx, n, 13)
+                if returned and returned_box == b:
+                    returned = False
         was_plane_seen = plane_seen
         frames_confirmed_missing = frames_confirmed_missing + 1 if plane_missing else 0
         if frames_confirmed_missing == plane_gone_frames:               # plane has left? one pulse
             for n in plane_gone_layer:
                 snn.add_spike(frame_idx, n, 13)
-        if frames_confirmed_missing >= plane_gone_frames:
-            returned = False
         if returned:
             returned_frames += 1
             if returned_frames > int(75 * fps):              # returned only covers one climb-out
