@@ -1,9 +1,9 @@
 start,end,area,movement,direction
-689,2288,near,landing,away
+689,988,near,landing,away
 9949,10489,far,takeoff,away
-13935,15834,far,takeoff,away
+13935,14834,far,takeoff,away
 21428,23076,both,touch/go,away
-24125,25825,near,landing,away
+24125,24425,near,landing,away
 28890,31467,both,touch/go,away
-34263,36622,near,landing,away
-38960,41359,far,takeoff,away
+36263,36622,near,landing,away
+38960,40159,far,takeoff,away
