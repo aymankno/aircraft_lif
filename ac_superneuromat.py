@@ -19,7 +19,7 @@ shrink_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 
 recent_descent_layer = [snn.create_neuron(threshold=0.5)]                   # one neuron because recent_descent is yes/no
 vanished_layer = [snn.create_neuron(threshold=(0.5)) for i in range(45)]    # 45 neurons to make the layer into a timer, one neuron / sec
-vanish_dead_sec = 20                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
+vanish_dead_sec = 8                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
 returned_layer = [snn.create_neuron(threshold=0.5)]                         # on while a vanished plane is back (came back after the dead zone)
 plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
 plane_gone_layer = [snn.create_neuron(threshold=0.5)]                       # one-frame pulse when the plane has left; unlocks decision gates
@@ -109,7 +109,7 @@ for pre in blob_detected_layer:
 
 # Feature neurons: fixed logic (no STDP, leak=inf so each is a same-frame detector)
 # takeoff  = ascent AND NOT returned
-# touch/go = ascent AND returned: the plane came down, left, and came back
+# touch/go = returned (came down, left, came back within the window); fires on returned alone
 takeoff_feat = snn.create_neuron(threshold=0.5)
 touch_go_feat = snn.create_neuron(threshold=1.0)
 
@@ -120,7 +120,7 @@ for pre in ascent_any:
 
 for pre in returned_layer:
     snn.create_synapse(pre, takeoff_feat, weight=-2.0, stdp_enabled=False)
-    snn.create_synapse(pre, touch_go_feat, weight=0.7, stdp_enabled=False)
+    snn.create_synapse(pre, touch_go_feat, weight=1.1, stdp_enabled=False)    # back after vanishing = touch/go evidence on its own
 
 for feat, layer in [(takeoff_feat, takeoff_layer), (touch_go_feat, touch_go_layer)]:
     for post in layer:
@@ -340,7 +340,6 @@ def run_model(video):
                         snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
                 if min_far_delta_torwards < far_dy < max_far_delta_torwards:
-                    descent_fired = True
                     for n in descent_far_layer:                             # torwards
                         snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
@@ -384,6 +383,7 @@ def run_model(video):
         if plane_seen and not was_plane_seen:
             if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames:
                 returned = True
+                returned_frames = 0
                 frames_since_vanish = None
         was_plane_seen = plane_seen
         frames_confirmed_missing = frames_confirmed_missing + 1 if plane_missing else 0
@@ -392,6 +392,10 @@ def run_model(video):
                 snn.add_spike(frame_idx, n, 13)
         if frames_confirmed_missing >= plane_gone_frames:
             returned = False
+        if returned:
+            returned_frames += 1
+            if returned_frames > int(75 * fps):              # returned only covers one climb-out
+                returned = False
         if returned:
             for n in returned_layer:
                 snn.add_spike(frame_idx, n, 13)
