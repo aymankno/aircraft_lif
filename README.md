@@ -8,8 +8,8 @@ video9, video10 - [YouTube Link](https://www.youtube.com/playlist?list=PLKrqNoJm
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
-Latest changes (10/28) - Accumulative evidence layers, gate neurons, and video10_labels.csv initial commit:
-Added accumulative "evidence" layers, gates, and introduced new logic to SNN. Evidence layers, similar to output layers, are layers that collect evidence over time from output layers to send to decision layers. Although, they are different because of much smaller leaks, allowing for collected evidence to remain relevant. When passed threshold, evidence layers fire decision layer neurons once. Gates close, and for the rest of the time a plane/event is detected, no decision layers can fire. This is improved human-like logic, likely to be used for future classifcation of aircraft. Additonally, made video10_labels storing the same data as video9_labels, just for video10 events.
+Latest changes (10/31) - 100% accuracy on test footage video10!
+After making changes to training pipeline and creating seperate blob detection for each zone, testing for video10 came back as 100%. Planning to train on videos 1-8 before starting classification, but uploaded video9, video10 to YouTube, link at the top of this README.md. 
 
 ## License
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
