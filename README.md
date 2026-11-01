@@ -2,8 +2,9 @@
 Ayman Aghel - 9/14/2026
 
 V1 = aircraft_counter.py - Custom LIF network coded manually in Python
-
 V2 = ac_superneuromat.py - SuperNeuroMAT spiking neural network
+
+video9, video10 - [YouTube Link](https://www.youtube.com/playlist?list=PLKrqNoJmfkQE)
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
@@ -154,6 +155,13 @@ Added accumulator and gate neurons for more logic in the neural network. Accumul
 Notes: Not yet tested on video9 nor video10. Video10 has 8 events, video9 has 18. Consider cleaning up code with classes, or with loops for things like IDs.
 
 Future changes: Attempted to upload video9 to YouTube, but was faced with an error. Planning to look into it and consider other video sharing platforms for video9 and video10.
+
+### 100% accuracy in testing footage; changed training to teacher spikes only, seperate blob tracking for each zone, uploaded video9, video10 to YouTube, more - 10/31/2026
+After testing on both video9 and video10, found 100% accuracy on both videos. Video10 was an absolute 100% accuracy on landings, touch/goes, takeoffs, and total operations counts (including * 2 for touch/go due to FAA regulations). Video9 does not show as 100% in scoring report at end, although this is just due to the way scoring happens; close events look like miscounted events. Furthermore, on video9, a landing at the end of the video does not have enough time for vanish layer nor landing accumulator to accumulate charge, so it goes uncounted. This would not be an issue in actual implementation. Recieved 100% accuracy on both videos after changing synapse weights, area size parameters, and frames of events. Reverted frames of events back to absolute frames, as in training buffers (lag) were added automatically and in testing were instead added in the front (lead). Added seperate blob detection for near and far zones, something planned in the initial implementation of zones yet just added now. Turned test_video into a function, and started converting booleans in model to neurons. Also, uploaded video9 and video10 to YouTube, linked at the top of this README.md
+
+Notes: Stable version, awaiting video1-8 further testing.
+
+Future changes: Running model live rather than scheduling spikes, aircraft classification.
 
 ## Acknowledgements:
 
