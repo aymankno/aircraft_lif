@@ -147,17 +147,24 @@ def live_model(camera_index=0, preview=False):
 
     print(f"Live! Camera {camera_index} at {fps:.2f} fps.", flush=True)
     t_start = time.time()
+    failed_reads = 0
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            cap.release()                                # live: dropped feed -> reconnect and keep running
-            time.sleep(1)
-            try:
-                cap = open_camera(camera_index)
-            except RuntimeError as e:
-                print(e, flush=True)
+            failed_reads += 1                            # live: webcams drop the first frames while warming up
+            if failed_reads >= 30:                       # live: feed really dropped -> reconnect and keep running
+                cap.release()
+                time.sleep(1)
+                try:
+                    cap = open_camera(camera_index)
+                except RuntimeError as e:
+                    print(e, flush=True)
+                failed_reads = 0
+            else:
+                time.sleep(0.03)
             continue
+        failed_reads = 0
         if frame.shape[1] != frame_w or frame.shape[0] != frame_h:
             frame = cv2.resize(frame, (frame_w, frame_h))  # live: put any camera size onto the 1080p grid the boxes use
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -326,7 +333,7 @@ def live_model(camera_index=0, preview=False):
         if frame_idx == int(10 * fps):                   # live: the SNN's timers count frames, so the camera must really run at fps
             real_fps = frame_idx / (time.time() - t_start)
             if abs(real_fps - fps) > 0.1 * fps:
-                print(f"WARNING: camera is delivering {real_fps:.1f} fps, timers assume {fps:.2f}", flush=True)
+                print(f"WARNING! camera is delivering {real_fps:.1f} fps, timers assume {fps:.2f}", flush=True)
 
         if preview:
             view = frame.copy()
@@ -334,9 +341,13 @@ def live_model(camera_index=0, preview=False):
             cv2.rectangle(view, (fx, fy), (fx + fw, fy + fh), (0, 0, 255), 3)
             cv2.putText(view, f"L {counts['LANDING']}  T {counts['TAKEOFF']}  TG {counts['TOUCH-AND-GO']}",
                         (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 3)
-            cv2.imshow("ac_live", cv2.resize(view, (frame_w // 2, frame_h // 2)))
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+            try:
+                cv2.imshow("ac_live", cv2.resize(view, (frame_w // 2, frame_h // 2)))
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    break
+            except cv2.error:
+                print("preview failed; no windows")
+                preview = False
 
         if near_y is None:
             old_near_area = None
@@ -348,7 +359,8 @@ def live_model(camera_index=0, preview=False):
         frame_idx += 1
 
     cap.release()
-    cv2.destroyAllWindows()
+    if preview:
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
@@ -359,8 +371,8 @@ if __name__ == "__main__":
     numbers = [a for a in args if a.isdigit()]
     camera_index = int(numbers[0]) if numbers else 0
     try:
-        live_model(camera_index, preview="--preview" in args)
+        live_model(camera_index, preview="--no-preview" not in args)
     except KeyboardInterrupt:
-        print("Stopped.")
+        print("Video stopped.")
     except RuntimeError as e:
         print(e)
