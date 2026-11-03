@@ -1,3 +1,4 @@
 .DS_Store
 __pycache__/superneuromat.cpython-314.pyc
 trained_weights.npy
+__pycache__/ac_init.cpython-314.pyc
