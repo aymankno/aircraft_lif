@@ -65,7 +65,7 @@ with open(video9_labels) as f:
             for n in defined_directions[direction]:
                 net.snn.add_spike((f_idx + 1), n, 9)
 
-def run_model(video):
+def schedule_model(video):
     cap = cv2.VideoCapture(video)
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     backSub = cv2.createBackgroundSubtractorMOG2()
@@ -318,5 +318,6 @@ def run_model(video):
 
     return frame_idx, video_start, segments
 
-_, _, _ = run_model(video9)
+frame_idx, _, _ = schedule_model(video9)
+net.snn.simulate(frame_idx)
 np.save("trained_weights.npy", net.snn.weight_mat())
