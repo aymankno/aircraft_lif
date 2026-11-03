@@ -617,12 +617,11 @@ print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_
 print("Touch/go layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
 print()
 
-def test_video(video, video_label):
-    print(video.upper(), "TESTING")
+def test_video(video, video_label, diagnostic_enabled):
     snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False)
     snn.reset()
 
-    frame_num, video_start, segments = run_model(video)
+    frame_num, _, _ = run_model(video)
     snn.simulate(time_steps=frame_num)
     rows = snn.ispikes[0 : frame_num]
 
@@ -637,42 +636,63 @@ def test_video(video, video_label):
     print("Takeoff at frames:", np.where(rows[:, takeoff_decision[0].idx])[0])
     print("Touch & go at frames:", np.where(rows[:, touch_go_decision[0].idx])[0])
 
-    measure = {
-        "landing":  landing_decision_ids,
-        "takeoff":  takeoff_decision_ids,
-        "touch/go": touch_go_decision_ids,
-        "landing_layer": landing_ids,
-        "takeoff_layer": takeoff_ids,
-        "touch_go_layer": touch_go_ids,
-    }
+    if diagnostic_enabled == True:
+        measure = {
+            "landing":  landing_decision_ids,
+            "takeoff":  takeoff_decision_ids,
+            "touch/go": touch_go_decision_ids,
+            "landing_layer": landing_ids,
+            "takeoff_layer": takeoff_ids,
+            "touch_go_layer": touch_go_ids,
+        }
 
-    labels = ["takeoff", "landing", "touch/go"]
-    results = {lab: {layer: [] for layer in measure} for lab in labels}
+        labels = ["takeoff", "landing", "touch/go"]
+        results = {lab: {layer: [] for layer in measure} for lab in labels}
 
-    lag = {"takeoff": 5 * 30, "landing": 45 * 30, "touch/go": 5 * 30}   # frames after the event ends to keep counting (around 30 fps); landing decides around 40 sec after the plane leaves
-    lead = {"takeoff": 10 * 30, "landing": 0, "touch/go": 0} # for accurate scoring 
+        lag = {"takeoff": 5 * 30, "landing": 45 * 30, "touch/go": 5 * 30}   # frames after the event ends to keep counting (around 30 fps); landing decides around 40 sec after the plane leaves
+        lead = {"takeoff": 10 * 30, "landing": 0, "touch/go": 0} # for accurate scoring 
 
-    with open(video_label) as f:
-        next(f)
-        for row in f:
-            row = row.strip()
-            if not row:
-                continue
-            start, end, area, movement, direction = [x.strip() for x in row.split(',')]
-            start, end = int(start), int(end)
+        with open(video_label) as f:
+            next(f)
+            for row in f:
+                row = row.strip()
+                if not row:
+                    continue
+                start, end, area, movement, direction = [x.strip() for x in row.split(',')]
+                start, end = int(start), int(end)
 
-            window = rows[start - lead[movement]:end + lag[movement]]
-            for layer, ids in measure.items():
-                avg_frame = window[:, ids].sum()
-                results[movement][layer].append(avg_frame)
+                window = rows[start - lead[movement]:end + lag[movement]]
+                for layer, ids in measure.items():
+                    avg_frame = window[:, ids].sum()
+                    results[movement][layer].append(avg_frame)
 
-    for lab in labels:
-        print(f"\n{lab.upper()} events:")
-        for layer, vals in results[lab].items():
-            if not vals:
-                continue
-            v = np.array(vals)
-            print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
+        for lab in labels:
+            print(f"\n{lab.upper()} events:")
+            for layer, vals in results[lab].items():
+                if not vals:
+                    continue
+                v = np.array(vals)
+                print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
 
-test_video(video9, video9_labels)
-test_video(video10, video10_labels)
+print("VIDEO9 test")
+test_video(video9, video9_labels, diagnostic_enabled=True)
+print("VIDEO10 test")
+test_video(video10, video10_labels, diagnostic_enabled=True)
+
+video1 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/1muted.mp4'
+video2 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/2muted.mp4'
+video3 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/3muted.mp4'
+video4 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/4muted.mp4'
+video5 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/5muted.mp4'
+video6 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/6muted.mp4'
+video7 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/7muted.mp4'
+video8 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/8muted.mp4'
+
+unlabeled_videos = [video1, video2, video3, video4, video5, video6, video7, video8]
+
+print("Unlabeled tests")
+idx = 0
+for video in unlabeled_videos:
+    print(f"Video {idx+1}")
+    test_video(video, None, diagnostic_enabled=False)
+    idx += 1
