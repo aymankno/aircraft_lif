@@ -7,6 +7,20 @@ rng = np.random.default_rng(0)
 
 snn = SNN()
 
+video1 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/1muted.mp4'
+video2 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/2muted.mp4'
+video3 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/3muted.mp4'
+video4 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/4muted.mp4'
+video5 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/5muted.mp4'
+video6 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/6muted.mp4'
+video7 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/7muted.mp4'
+video8 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/8muted.mp4'
+video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
+video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
+
+video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
+video10_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video10_labels.csv"
+
 # 25 neurons each - eyes of SNN (input layers)
 descent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 ascent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
@@ -172,8 +186,6 @@ def get_slope(y_old, y_new):
 ### TRAINING BELOW
 print()
 print("TRAINING:")
-video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
-
 
 defined_outputs = {"takeoff": takeoff_layer,
                    "landing": landing_layer,
@@ -185,8 +197,6 @@ defined_directions = {"away": traffic_away_layer,
 Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
 Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses; not used
 snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)              # Sets up stdp based on values above
-
-video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
 
 teacher_count = {"takeoff": 0, "landing": 0, "touch/go": 0}
 with open(video9_labels) as f:
@@ -597,8 +607,6 @@ print()
 
 
 ### VIDEO TESTING
-video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
-video10_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video10_labels.csv"
 print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 snn.reset()                                                              # to clear spike history for accurate spike counts.
@@ -678,15 +686,6 @@ print("VIDEO9 test")
 test_video(video9, video9_labels, diagnostic_enabled=True)
 print("VIDEO10 test")
 test_video(video10, video10_labels, diagnostic_enabled=True)
-
-video1 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/1muted.mp4'
-video2 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/2muted.mp4'
-video3 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/3muted.mp4'
-video4 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/4muted.mp4'
-video5 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/5muted.mp4'
-video6 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/6muted.mp4'
-video7 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/7muted.mp4'
-video8 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/8muted.mp4'
 
 unlabeled_videos = [video1, video2, video3, video4, video5, video6, video7, video8]
 
