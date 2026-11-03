@@ -38,8 +38,6 @@ def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
 
-### TRAINING BELOW
-
 defined_outputs = {"takeoff": net.takeoff_layer,
                    "landing": net.landing_layer,
                    "touch/go": net.touch_go_layer}
@@ -47,9 +45,9 @@ defined_outputs = {"takeoff": net.takeoff_layer,
 defined_directions = {"away": net.traffic_away_layer, 
                       "torwards": net.traffic_torwards_layer}
 
-Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
-Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses; not used
-net.snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)              # Sets up stdp based on values above
+Apos = [0.0004, 0.0002, 0.0001] 
+Aneg = [-0.0002, -0.0001, -0.00005] 
+net.snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)
 
 teacher_count = {"takeoff": 0, "landing": 0, "touch/go": 0}
 with open(video9_labels) as f:
@@ -72,16 +70,16 @@ def run_model(video):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
-    min_far_delta_away = 0.25        # away
-    max_far_delta_away = 1.5         # away
+    min_far_delta_away = 0.25
+    max_far_delta_away = 1.5
     
-    min_near_delta_away = -6.0       # away
-    max_near_delta_away = -1.0       # away
+    min_near_delta_away = -6.0
+    max_near_delta_away = -1.0 
 
     min_far_delta_torwards = -1.5
     max_far_delta_torwards = -0.25
 
-    far_dy_scale = 4.0               # far |dy| (0.25-1.5, moves in 0.5 px steps) -> near's 1-6 range, so far motion fires the thermometer layers
+    far_dy_scale = 4.0
 
     min_near_delta_torwards = 1.0
     max_near_delta_torwards = 6.9
@@ -92,23 +90,23 @@ def run_model(video):
     min_near_area = 100
     max_near_area = 10000
 
-    far_diff_min = 4 # min change to count as a change & spike
+    far_diff_min = 4 
     far_slope = 0.719
 
     near_diff_min = 24
     near_slope = 0.0913
 
     fps = cap.get(cv2.CAP_PROP_FPS)
-    descent_window = int(45 * fps) # how long recent_descent until leaked to 0
+    descent_window = int(45 * fps)
     video_start = 0
 
     frames_since_descent = None
     frames_since_vanish = None
-    vanish_dead_zone = int(ac_init.vanish_dead_sec * fps)   # reappearing sooner than this = a different aircraft, timer keeps running
-    vanish_frames = int(len(net.vanished_layer) * fps)  # timer length; after this nothing counts as returning
+    vanish_dead_zone = int(ac_init.vanish_dead_sec * fps)
+    vanish_frames = int(len(net.vanished_layer) * fps) 
     descent_streak = 0
     plane_gone_frames = int(ac_init.plane_gone_sec * fps)
-    frames_confirmed_missing = 0     # frames since plane_missing turned on (noise won't reset it)
+    frames_confirmed_missing = 0
     recent_descent_frames = int(10 * fps)
     min_descent_frames = 5
 
@@ -130,13 +128,12 @@ def run_model(video):
     frame_first_seen = None
     frame_disappeared = None
 
-    # per-box presence (same 2 s rules as the global state); the connectors below bridge the boxes
     box = {b: {"seen": False, "was_seen": False, "missing": False, "n_seen": 0, "n_missing": 0, "n_confirmed": 0,
                "areas": []} for b in ("near", "far")}
     gone_layer = {"near": net.near_gone_layer, "far": net.far_gone_layer}
     returned_box = None
 
-    segments = []                    # (first_seen, disappeared) per aircraft segment, kept in memory
+    segments = []
 
     while True:
         ret, frame = cap.read()
@@ -154,7 +151,7 @@ def run_model(video):
         for b, present, area in (("near", near_y is not None, near_area), ("far", far_y is not None, far_area)):
             st = box[b]
             if present:
-                st["areas"] = (st["areas"] + [area])[-min_frames_plane_seen:]    # blob size over the confirmation window
+                st["areas"] = (st["areas"] + [area])[-min_frames_plane_seen:] 
                 st["n_missing"] = 0
                 st["n_seen"] += 1
                 if st["n_seen"] > min_frames_plane_seen:
@@ -200,11 +197,11 @@ def run_model(video):
                 near_dy = get_slope(near_y_old, near_y)
                 if min_near_delta_away < near_dy < max_near_delta_away:
                     descent_fired = True
-                    for n in net.descent_near_layer:                                        # away
+                    for n in net.descent_near_layer:
                         net.snn.add_spike(frame_idx, n, abs(near_dy))
 
                 elif  min_near_delta_torwards < near_dy < max_near_delta_torwards:
-                    for n in net.ascent_near_layer:                                         # torwards
+                    for n in net.ascent_near_layer:
                         net.snn.add_spike(frame_idx, n, abs(near_dy))
 
                 if near_area > min_near_area:
@@ -215,7 +212,7 @@ def run_model(video):
                     if diff_near_area > near_diff_min:
                         value = 1 + (diff_near_area - near_diff_min) * near_slope
                         for n in net.grow_layer:
-                            net.snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
+                            net.snn.add_spike(frame_idx, n, value, exist="add")
                     elif diff_near_area < -near_diff_min:
                         value = 1 + (-diff_near_area - near_diff_min) * near_slope
                         for n in net.shrink_layer:
@@ -226,11 +223,11 @@ def run_model(video):
             if far_y is not None and far_y_old is not None:
                 far_dy = get_slope(far_y_old, far_y)
                 if min_far_delta_away < far_dy < max_far_delta_away:
-                    for n in net.ascent_far_layer:                              # away
+                    for n in net.ascent_far_layer:                              
                         net.snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
                 if min_far_delta_torwards < far_dy < max_far_delta_torwards:
-                    for n in net.descent_far_layer:                             # torwards
+                    for n in net.descent_far_layer:                            
                         net.snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
 
                 if far_area > 1:
@@ -259,7 +256,6 @@ def run_model(video):
         if descent_streak >= min_descent_frames:
             frames_since_descent = 0
 
-        # vanish: the descending plane (near box) disappears, even if the far box is busy
         if box["near"]["seen"] and near_y is not None:
             if frames_since_descent is not None and frames_since_descent <= recent_descent_frames:
                 was_descending = True
@@ -271,7 +267,6 @@ def run_model(video):
             for n in net.recent_descent_layer:
                 net.snn.add_spike(frame_idx, n, 13)
 
-        # returned: a plane is confirmed in EITHER box during the vanish window -> same aircraft back
         for b in ("near", "far"):
             st = box[b]
             if st["seen"] and not st["was_seen"]:
@@ -282,7 +277,6 @@ def run_model(video):
                     returned_frames = 0
                     frames_since_vanish = None
             st["was_seen"] = st["seen"]
-            # per-box gone pulse; clears returned if it was this box's plane
             st["n_confirmed"] = st["n_confirmed"] + 1 if st["missing"] else 0
             if st["n_confirmed"] == plane_gone_frames:
                 for n in gone_layer[b]:
@@ -291,12 +285,12 @@ def run_model(video):
                     returned = False
         was_plane_seen = plane_seen
         frames_confirmed_missing = frames_confirmed_missing + 1 if plane_missing else 0
-        if frames_confirmed_missing == plane_gone_frames:               # plane has left? one pulse
+        if frames_confirmed_missing == plane_gone_frames:
             for n in net.plane_gone_layer:
                 net.snn.add_spike(frame_idx, n, 13)
         if returned:
             returned_frames += 1
-            if returned_frames > int(75 * fps):              # returned only covers one climb-out
+            if returned_frames > int(75 * fps):
                 returned = False
         if returned:
             for n in net.returned_layer:
@@ -324,5 +318,5 @@ def run_model(video):
 
     return frame_idx, video_start, segments
 
-frame_idx, _, _ = run_model(video9)
+_, _, _ = run_model(video9)
 np.save("trained_weights.npy", net.snn.weight_mat())
