@@ -1,0 +1,328 @@
+from superneuromat import SNN
+import cv2
+import numpy as np
+import ac_init
+
+video1 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/1muted.mp4'
+video2 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/2muted.mp4'
+video3 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/3muted.mp4'
+video4 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/4muted.mp4'
+video5 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/5muted.mp4'
+video6 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/6muted.mp4'
+video7 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/7muted.mp4'
+video8 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/8muted.mp4'
+video9 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/9muted.mp4"
+video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
+
+video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
+video10_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video10_labels.csv"
+
+net = ac_init.build_network()
+
+def track(mask, box, min_area, max_area):
+    x, y, w, h = box
+    crop = mask[y:y+h, x:x+w]
+    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(crop)
+    if num_labels <= 1:
+        return None, None
+    best_i = np.argmax(stats[1:, cv2.CC_STAT_AREA]) + 1
+    area = stats[best_i, cv2.CC_STAT_AREA]
+    if not (min_area <= area <= max_area):
+        return None, None
+    top = stats[best_i, cv2.CC_STAT_TOP]
+    height = stats[best_i, cv2.CC_STAT_HEIGHT]
+
+    return top + height / 2, area
+
+def get_slope(y_old, y_new):
+    delta_y = y_old - y_new
+    return delta_y
+
+### TRAINING BELOW
+
+defined_outputs = {"takeoff": net.takeoff_layer,
+                   "landing": net.landing_layer,
+                   "touch/go": net.touch_go_layer}
+
+defined_directions = {"away": net.traffic_away_layer, 
+                      "torwards": net.traffic_torwards_layer}
+
+Apos = [0.0004, 0.0002, 0.0001]                     # determines how fast it learns, tightening synapses
+Aneg = [-0.0002, -0.0001, -0.00005]                 # loosening synapses; not used
+net.snn.stdp_setup(Apos, Aneg, positive_update=True, negative_update=False)              # Sets up stdp based on values above
+
+teacher_count = {"takeoff": 0, "landing": 0, "touch/go": 0}
+with open(video9_labels) as f:
+    next(f)
+    for row in f:                                    # Teacher Spike:
+        row = row.strip()
+        if not row:
+            continue
+        start, end, area, movement, direction = [x.strip() for x in row.split(',')]
+        start, end = int(start), int(end)
+        for f_idx in range(start, end, 11):
+            teacher_count[movement] += 1
+            for n in defined_outputs[movement]:
+                net.snn.add_spike((f_idx + 1), n, 9)
+            for n in defined_directions[direction]:
+                net.snn.add_spike((f_idx + 1), n, 9)
+
+def run_model(video):
+    cap = cv2.VideoCapture(video)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    backSub = cv2.createBackgroundSubtractorMOG2()
+
+    min_far_delta_away = 0.25        # away
+    max_far_delta_away = 1.5         # away
+    
+    min_near_delta_away = -6.0       # away
+    max_near_delta_away = -1.0       # away
+
+    min_far_delta_torwards = -1.5
+    max_far_delta_torwards = -0.25
+
+    far_dy_scale = 4.0               # far |dy| (0.25-1.5, moves in 0.5 px steps) -> near's 1-6 range, so far motion fires the thermometer layers
+
+    min_near_delta_torwards = 1.0
+    max_near_delta_torwards = 6.9
+
+    min_far_area = 10
+    max_far_area = 100
+
+    min_near_area = 100
+    max_near_area = 10000
+
+    far_diff_min = 4 # min change to count as a change & spike
+    far_slope = 0.719
+
+    near_diff_min = 24
+    near_slope = 0.0913
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    descent_window = int(45 * fps) # how long recent_descent until leaked to 0
+    video_start = 0
+
+    frames_since_descent = None
+    frames_since_vanish = None
+    vanish_dead_zone = int(ac_init.vanish_dead_sec * fps)   # reappearing sooner than this = a different aircraft, timer keeps running
+    vanish_frames = int(len(net.vanished_layer) * fps)  # timer length; after this nothing counts as returning
+    descent_streak = 0
+    plane_gone_frames = int(ac_init.plane_gone_sec * fps)
+    frames_confirmed_missing = 0     # frames since plane_missing turned on (noise won't reset it)
+    recent_descent_frames = int(10 * fps)
+    min_descent_frames = 5
+
+    near_y_old = None
+    far_y_old = None
+    old_near_area = None
+    old_far_area = None
+    frame_idx = 0
+
+    plane_seen = False
+    plane_missing = False
+    was_descending = False
+    returned = False
+
+    frames_plane_seen = 0
+    min_frames_plane_seen = int(2 * fps)
+    frames_plane_missing = 0
+    min_frames_plane_missing = int(2 * fps)
+    frame_first_seen = None
+    frame_disappeared = None
+
+    # per-box presence (same 2 s rules as the global state); the connectors below bridge the boxes
+    box = {b: {"seen": False, "was_seen": False, "missing": False, "n_seen": 0, "n_missing": 0, "n_confirmed": 0,
+               "areas": []} for b in ("near", "far")}
+    gone_layer = {"near": net.near_gone_layer, "far": net.far_gone_layer}
+    returned_box = None
+
+    segments = []                    # (first_seen, disappeared) per aircraft segment, kept in memory
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        mask = backSub.apply(gray)
+        near_mask = mask.copy()
+        near_mask[604:755, 974:1239] = 0
+        near_y, near_area = track(near_mask, ac_init.NEAR_BOX, min_near_area, max_near_area)
+        far_y, far_area = track(mask, ac_init.FAR_BOX, min_far_area, max_far_area)
+
+        is_blob = near_y is not None or far_y is not None
+
+        for b, present, area in (("near", near_y is not None, near_area), ("far", far_y is not None, far_area)):
+            st = box[b]
+            if present:
+                st["areas"] = (st["areas"] + [area])[-min_frames_plane_seen:]    # blob size over the confirmation window
+                st["n_missing"] = 0
+                st["n_seen"] += 1
+                if st["n_seen"] > min_frames_plane_seen:
+                    st["seen"], st["missing"] = True, False
+            else:
+                st["areas"] = []
+                st["n_seen"] = 0
+                st["n_missing"] += 1
+                if st["n_missing"] > min_frames_plane_missing:
+                    st["missing"], st["seen"] = True, False
+
+        if is_blob:
+            frames_plane_missing = 0
+            frame_disappeared = None
+            frames_plane_seen += 1
+            if frames_plane_seen == min_frames_plane_seen and frame_first_seen is None:
+                frame_first_seen = frame_idx
+            elif frames_plane_seen > min_frames_plane_seen:
+                plane_seen = True
+                plane_missing = False
+        else:
+            frames_plane_seen = 0
+            if frames_plane_missing == 0 and frame_disappeared is None:
+                frame_disappeared = frame_idx
+            frames_plane_missing += 1
+            if frames_plane_missing == min_frames_plane_missing and frame_first_seen is not None:
+                segments.append((frame_first_seen, frame_disappeared))
+                frame_first_seen = None
+                frame_disappeared = None
+
+            elif frames_plane_missing > min_frames_plane_missing:
+                plane_missing = True
+                plane_seen = False
+
+        if plane_seen:
+            for n in net.blob_detected_layer:
+                net.snn.add_spike(frame_idx, n, 13)
+
+        descent_fired = False
+
+        if plane_seen:
+            if near_y is not None and near_y_old is not None:
+                near_dy = get_slope(near_y_old, near_y)
+                if min_near_delta_away < near_dy < max_near_delta_away:
+                    descent_fired = True
+                    for n in net.descent_near_layer:                                        # away
+                        net.snn.add_spike(frame_idx, n, abs(near_dy))
+
+                elif  min_near_delta_torwards < near_dy < max_near_delta_torwards:
+                    for n in net.ascent_near_layer:                                         # torwards
+                        net.snn.add_spike(frame_idx, n, abs(near_dy))
+
+                if near_area > min_near_area:
+                    if old_near_area is None:
+                        old_near_area = near_area
+                    diff_near_area = near_area - old_near_area
+                    old_near_area = near_area
+                    if diff_near_area > near_diff_min:
+                        value = 1 + (diff_near_area - near_diff_min) * near_slope
+                        for n in net.grow_layer:
+                            net.snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
+                    elif diff_near_area < -near_diff_min:
+                        value = 1 + (-diff_near_area - near_diff_min) * near_slope
+                        for n in net.shrink_layer:
+                            net.snn.add_spike(frame_idx, n, value, exist="add")
+
+
+
+            if far_y is not None and far_y_old is not None:
+                far_dy = get_slope(far_y_old, far_y)
+                if min_far_delta_away < far_dy < max_far_delta_away:
+                    for n in net.ascent_far_layer:                              # away
+                        net.snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
+
+                if min_far_delta_torwards < far_dy < max_far_delta_torwards:
+                    for n in net.descent_far_layer:                             # torwards
+                        net.snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
+
+                if far_area > 1:
+                    if old_far_area is None:
+                        old_far_area = far_area
+                    diff_far_area = far_area - old_far_area
+                    old_far_area = far_area
+                    if diff_far_area > far_diff_min:
+                        value = 1 + (diff_far_area - far_diff_min) * far_slope
+                        for n in net.grow_layer:
+                            net.snn.add_spike(frame_idx, n, value, exist='add')
+                    elif diff_far_area < -far_diff_min:
+                        value = 1 + (-diff_far_area - far_diff_min) * far_slope
+                        for n in net.shrink_layer:
+                            net.snn.add_spike(frame_idx, n, value, exist='add')
+
+        if frames_since_descent is not None:
+            frames_since_descent += 1
+        if frames_since_vanish is not None:
+            frames_since_vanish += 1
+
+        if descent_fired:
+            descent_streak += 1
+        else:
+            descent_streak = 0
+        if descent_streak >= min_descent_frames:
+            frames_since_descent = 0
+
+        # vanish: the descending plane (near box) disappears, even if the far box is busy
+        if box["near"]["seen"] and near_y is not None:
+            if frames_since_descent is not None and frames_since_descent <= recent_descent_frames:
+                was_descending = True
+        elif box["near"]["missing"] and was_descending:
+            frames_since_vanish = 0
+            was_descending = False
+
+        if frames_since_descent is not None and frames_since_descent < descent_window:
+            for n in net.recent_descent_layer:
+                net.snn.add_spike(frame_idx, n, 13)
+
+        # returned: a plane is confirmed in EITHER box during the vanish window -> same aircraft back
+        for b in ("near", "far"):
+            st = box[b]
+            if st["seen"] and not st["was_seen"]:
+                plane_sized = b == "near" or np.median(st["areas"]) >= ac_init.far_return_min_area
+                if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames and plane_sized:
+                    returned = True
+                    returned_box = b
+                    returned_frames = 0
+                    frames_since_vanish = None
+            st["was_seen"] = st["seen"]
+            # per-box gone pulse; clears returned if it was this box's plane
+            st["n_confirmed"] = st["n_confirmed"] + 1 if st["missing"] else 0
+            if st["n_confirmed"] == plane_gone_frames:
+                for n in gone_layer[b]:
+                    net.snn.add_spike(frame_idx, n, 13)
+                if returned and returned_box == b:
+                    returned = False
+        was_plane_seen = plane_seen
+        frames_confirmed_missing = frames_confirmed_missing + 1 if plane_missing else 0
+        if frames_confirmed_missing == plane_gone_frames:               # plane has left? one pulse
+            for n in net.plane_gone_layer:
+                net.snn.add_spike(frame_idx, n, 13)
+        if returned:
+            returned_frames += 1
+            if returned_frames > int(75 * fps):              # returned only covers one climb-out
+                returned = False
+        if returned:
+            for n in net.returned_layer:
+                net.snn.add_spike(frame_idx, n, 13)
+
+        if frames_since_vanish is not None:
+            sec = int(frames_since_vanish // fps)
+            if sec < len(net.vanished_layer):
+                net.snn.add_spike(frame_idx, net.vanished_layer[sec], 13)
+
+        if near_y is None:
+            old_near_area = None
+        if far_y is None:
+            old_far_area = None
+
+        near_y_old = near_y
+        far_y_old = far_y
+        frame_idx += 1
+
+    if frames_plane_missing == 0:
+        frame_disappeared = frame_idx - 1
+
+    if frame_first_seen is not None:
+        segments.append((frame_first_seen, frame_disappeared))
+
+    return frame_idx, video_start, segments
+
+frame_idx, _, _ = run_model(video9)
+np.save("trained_weights.npy", net.snn.weight_mat())
