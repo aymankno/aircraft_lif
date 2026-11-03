@@ -321,3 +321,5 @@ def schedule_model(video):
 frame_idx, _, _ = schedule_model(video9)
 net.snn.simulate(frame_idx)
 np.save("trained_weights.npy", net.snn.weight_mat())
+
+print("Training & saving successful.")
