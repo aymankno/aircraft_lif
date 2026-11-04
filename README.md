@@ -163,6 +163,14 @@ Notes: Stable version, awaiting video1-8 further testing.
 
 Future changes: Running model live rather than scheduling spikes, aircraft classification.
 
+### Correctly identified 41/41 movements, live implementation of model after splitting into three files - 11/3/2026
+Tested model on video1-8, recieved an absolute 100% accuracy on unlabled videos that had only been labeled the day of with plain aircraft counts per-video rather than frame labels like those of video9 and video10. This means that live implementation is a clear next step, resulting in a planned trip to a local airfield for further testing, live. In order to create the model with live implementation, I split the file up into three files: ac_init, ac_train, and ac_live. I left ac_superneuromat alone to be used for future training and testing of new features, including future aircraft classification. Also, since both files use ac_init, adding new features to ac_live from ac_superneuromat should not be very hard. ac_init represents neural initialization, including neuron layers and their IDs. Then, I moved the training pipeline from ac_superneuromat to ac_train for training weights to be saved to a file (trained_weights.npy) rather than locally, thus cutting down startup time of model drastically, with some instances taking over 5 minutes to get test results in ac_superneuromat. Then, in ac_live, completely changed structure of previous run_model (now schedule_model) from ac_superneuromat to become a live model, with neurons reacting in real time rather than to scheduled spikes. Many failed attempts at running the model on my local webcam led to an extreme amount of safeguards for cv2 being created, including mismatch frame and incorrect version printed warnings.
+
+Notes: Play video of video10 on a device placed in front of ac_live to test? Also, consider testing webcam on camera used at airfield. Consider removing grow/shrink layers; not needed? Test on reversed video!
+
+Note to reader: For FAA grants, aircraft event counts are required in addition to aircraft type counts (piston, jet, etc). Additionally, in official reporting, touch & goes are counted as two movements rather than one. This is why final_ops in ac_live and operations in ac_superneuromat include (2 * touch_gos).
+
+Future changes: Test ac_superneuromat on reversed video, investigate the 100% accuracies, consider fate of grow/shrink layers, upload video1-8 to YouTube? Begin classification input layers, investigate ways to distinguish aircraft with exclusively cv2 (maybe size ratio?). Also, consider using grow/shrink layers as gauge for speed to further classify aircraft type. 
 ## Acknowledgements:
 
 ```bibtex
