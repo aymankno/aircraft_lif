@@ -8,8 +8,8 @@ video9, video10 - [YouTube Link](https://www.youtube.com/playlist?list=PLKrqNoJm
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
-Latest changes (10/31) - 100% accuracy on test footage video10!
-After making changes to training pipeline and creating seperate blob detection for each zone, testing for video10 came back as 100%. Planning to train on videos 1-8 before starting classification, but uploaded video9, video10 to YouTube, link at the top of this README.md. 
+Latest changes (11/3) - Correctly classified 41/41 events, live implementation of model
+After testing on videos 1-8 in addition to videos 9 and 10, the model correctly identified 41/41 events without incorrectly identifying or missing any. This is a big milestone for the aircraft_counter repository! To prepare for further testing of the model live, I coded the live implementation of the model. The live implementation is comprised of three files: an initializer with the SNN enviornment, a trainer where the model saves weights to a seperate file, and the live file that uses the saved weights and runs the model in real time rather than scheduling spikes. The live model is in a completely seperate enviornment from ac_superneuromat, allowing for the testing of new features with ac_superneuromat and filmed videos. Planning to begin aircraft classification in next changelog.
 
 ## License
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
@@ -170,7 +170,8 @@ Notes: Play video of video10 on a device placed in front of ac_live to test? Als
 
 Note to reader: For FAA grants, aircraft event counts are required in addition to aircraft type counts (piston, jet, etc). Additionally, in official reporting, touch & goes are counted as two movements rather than one. This is why final_ops in ac_live and operations in ac_superneuromat include (2 * touch_gos).
 
-Future changes: Test ac_superneuromat on reversed video, investigate the 100% accuracies, consider fate of grow/shrink layers, upload video1-8 to YouTube? Begin classification input layers, investigate ways to distinguish aircraft with exclusively cv2 (maybe size ratio?). Also, consider using grow/shrink layers as gauge for speed to further classify aircraft type. 
+Future changes: Test ac_superneuromat on reversed video, investigate the 100% accuracies, consider fate of grow/shrink layers, upload video1-8 to YouTube? Begin classification input layers, investigate ways to distinguish aircraft with exclusively cv2 (maybe size ratio?). Also, consider using grow/shrink layers as gauge for speed to further classify aircraft type.
+
 ## Acknowledgements:
 
 ```bibtex
