@@ -323,11 +323,11 @@ def live_model(camera_index=0, preview=False):
         for name, idx in decisions.items():
             if spikes[idx]:
                 counts[name] += 1
-                ops = counts["LANDING"] + counts["TAKEOFF"] + 2 * counts["TOUCH-AND-GO"]
+                ops = counts["LANDING"] + counts["TAKEOFF"] + (2 * counts["TOUCH-AND-GO"])
                 print(f"[{time.strftime('%H:%M:%S')} | t={frame_idx / fps:7.1f}s] {name:<12}  "
                       f"landings {counts['LANDING']}  takeoffs {counts['TAKEOFF']}  "
                       f"touch-and-goes {counts['TOUCH-AND-GO']}  operations {ops}", flush=True)
-        # live: trim spike history so memory stays flat; shorten (not clear) keeps the last step so the gate latches hold
+        # live: trim spike history so memory stays flat; shorten (not clear) keeps the last step so gate latches hold
         net.snn.shorten_spike_train()
 
         if frame_idx == int(10 * fps):                   # live: the SNN's timers count frames, so the camera must really run at fps
@@ -339,8 +339,8 @@ def live_model(camera_index=0, preview=False):
             view = frame.copy()
             cv2.rectangle(view, (nx, ny), (nx + nw, ny + nh), (0, 255, 0), 3)
             cv2.rectangle(view, (fx, fy), (fx + fw, fy + fh), (0, 0, 255), 3)
-            cv2.putText(view, f"L {counts['LANDING']}  T {counts['TAKEOFF']}  TG {counts['TOUCH-AND-GO']}",
-                        (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 3)
+            cv2.putText(view, f"L: {counts['LANDING']}  T: {counts['TAKEOFF']}  TG: {counts['TOUCH-AND-GO']}",
+                        (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 0), 3)
             try:
                 cv2.imshow("ac_live", cv2.resize(view, (frame_w // 2, frame_h // 2)))
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -362,6 +362,7 @@ def live_model(camera_index=0, preview=False):
     if preview:
         cv2.destroyAllWindows()
 
+    return counts
 
 if __name__ == "__main__":
     args = sys.argv[1:]
@@ -376,3 +377,20 @@ if __name__ == "__main__":
         print("Video stopped.")
     except RuntimeError as e:
         print(e)
+
+counts = live_model(camera_index=0, preview=True)
+
+landings = counts["LANDING"]
+takeoffs = counts["TAKEOFF"]
+touch_gos = counts["TOUCH-AND-GO"]
+raw_ops = landings + takeoffs + touch_gos
+final_ops = landings + takeoffs + (2 * touch_gos)
+
+print()
+print("Video ended. Final counts:")
+print("Landings:", landings)
+print("Takeoffs:", takeoffs)
+print("Touch & goes:", touch_gos)
+
+print("Raw operations count:", raw_ops)
+print("Final operations count:", final_ops)
