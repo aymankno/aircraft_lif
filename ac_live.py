@@ -9,7 +9,6 @@ import ac_init
 
 here = os.path.dirname(os.path.abspath(__file__))
 trained_weights = os.path.join(here, "trained_weights.npy")
-video7 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/7muted.mp4'
 
 net = ac_init.build_network()
 net.snn.set_weights_from_mat(np.load(trained_weights))
@@ -71,8 +70,8 @@ def get_slope(y_old, y_new):
     return delta_y
 
 
-def live_model(camera_index=video7, preview=False):
-    cap = open_camera(video7)
+def live_model(camera_index=0, preview=False):
+    cap = open_camera(camera_index)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
     min_far_delta_away = 0.25
@@ -377,7 +376,7 @@ if __name__ == "__main__":
     except RuntimeError as e:
         print(e)
 
-counts = live_model(camera_index=video7, preview=True)                  # In real testing, change to camera_index = 0; video8 for test
+counts = live_model(camera_index=camera_index, preview=True)                  # In real testing, change to camera_index = 0; video8 for test
 
 landings = counts["LANDING"]
 takeoffs = counts["TAKEOFF"]
