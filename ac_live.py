@@ -9,6 +9,7 @@ import ac_init
 
 here = os.path.dirname(os.path.abspath(__file__))
 trained_weights = os.path.join(here, "trained_weights.npy")
+video7 = '/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/7muted.mp4'
 
 net = ac_init.build_network()
 net.snn.set_weights_from_mat(np.load(trained_weights))
@@ -20,7 +21,6 @@ for syn in net.feature_synapses:
 
 # live: ac_init.NEAR_BOX / FAR_BOX are pixel coords on the 1920x1080, 29.97 fps training footage, so the camera must match
 frame_w, frame_h = 1920, 1080
-cam_fps = 30000 / 1001
 
 if sys.platform == "darwin":
     cam_backend = cv2.CAP_AVFOUNDATION
@@ -34,7 +34,6 @@ def open_camera(camera_index):
     cap = cv2.VideoCapture(camera_index, cam_backend)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_w)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_h)
-    cap.set(cv2.CAP_PROP_FPS, cam_fps)
     if not cap.isOpened():
         raise RuntimeError(f"camera {camera_index} did not open.")
     return cap
@@ -72,8 +71,8 @@ def get_slope(y_old, y_new):
     return delta_y
 
 
-def live_model(camera_index=0, preview=False):
-    cap = open_camera(camera_index)
+def live_model(camera_index=video7, preview=False):
+    cap = open_camera(video7)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
     min_far_delta_away = 0.25
@@ -102,7 +101,7 @@ def live_model(camera_index=0, preview=False):
     near_diff_min = 24
     near_slope = 0.0913
 
-    fps = cap.get(cv2.CAP_PROP_FPS) or cam_fps          # live: cameras often report 0 fps
+    fps = cap.get(cv2.CAP_PROP_FPS)         # live: cameras often report 0 fps
     descent_window = int(45 * fps)
 
     frames_since_descent = None
@@ -378,7 +377,7 @@ if __name__ == "__main__":
     except RuntimeError as e:
         print(e)
 
-counts = live_model(camera_index=0, preview=True)
+counts = live_model(camera_index=video7, preview=True)                  # In real testing, change to camera_index = 0; video8 for test
 
 landings = counts["LANDING"]
 takeoffs = counts["TAKEOFF"]
