@@ -21,27 +21,160 @@ video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
 video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
 video10_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video10_labels.csv"
 
-# 25 neurons each - eyes of SNN (input layers)
-descent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-ascent_near_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+far_return_min_area = 20                                                    # far-box blob must be this big to count as the vanished plane returning
+vanish_dead_sec = 8                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
+plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
 
-descent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
-ascent_far_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+# dy bands (moved out of run_model): the min is each thermometer's lowest threshold, the max is a veto neuron
+min_near_delta = 1.0             # |dy| floor, away and torwards (was min_near_delta_away / min_near_delta_torwards)
+max_near_delta_away = 6.0
+max_near_delta_torwards = 6.9
+min_far_delta = 0.25             # |far dy| floor, away and torwards
+max_far_delta = 1.5
+far_dy_scale = 4.0               # far |dy| (0.25-1.5, moves in 0.5 px steps) -> near's 1-6 range, so far motion fires the thermometer layers
+
+FPS = 30000 / 1001               # footage is 29.97 fps; every timer below counts frames
+SEEN_N = int(2 * FPS) + 1        # was: n_seen > min_frames_plane_seen (2 s)
+INH = -1e6                       # bigger than any value injected (even a blob swap), so it always wins
+EPS = 1e-6                       # dy sits on a 0.5 px grid; keeps the old strict "<" at the max
+
+def frames(sec):
+    return int(sec * FPS)
+
+### Building blocks: each one replaces a kind of python if / counter / boolean
+def gate(threshold, **kw):       # leak=inf: forgets every step, fires if this step's input > threshold
+    return snn.create_neuron(threshold=threshold, **kw)
+
+def latch():                     # boolean: self-loop holds it on, a -10 turns it off
+    n = snn.create_neuron(threshold=0.5)
+    snn.create_synapse(n, n, weight=1.0)
+    return n
+
+def counter(n):                  # frame counter: +1 per input, 0.5 leak -> fires on the nth input, drains on gaps
+    return snn.create_neuron(threshold=0.5 * n + 0.25, leak=0.5)
+
+def connect(pres, post, w=1.0):
+    for p in pres:
+        snn.create_synapse(p, post, weight=w)
+
+def set_reset(l, on, off):       # latch = True on "on", False on "off"
+    snn.create_synapse(on, l, weight=1.0)
+    snn.create_synapse(off, l, weight=-10.0)
+
+def edge(src):                   # was: seen and not was_seen -> fires on src's first step only
+    e, relay = gate(0.5), gate(0.5)          # relay: SuperNeuroMAT allows one synapse per pre/post pair
+    snn.create_synapse(src, e, weight=1.0)
+    snn.create_synapse(src, relay, weight=1.0)
+    snn.create_synapse(relay, e, weight=-1.0)
+    return e
+
+def one_shot(src, rearm, n):     # was: n_confirmed == plane_gone_frames -> fires once n steps into src, silent until rearm
+    c, done = counter(n), latch()
+    snn.create_synapse(src, c, weight=1.0)
+    snn.create_synapse(done, c, weight=-1.0)
+    set_reset(done, c, rearm)
+    return c
+
+def presence():                  # was: n_seen / n_missing counters + seen / missing booleans
+    present_count, missing_count = counter(SEEN_N), counter(SEEN_N)
+    seen, missing = latch(), latch()
+    set_reset(seen, present_count, missing_count)
+    set_reset(missing, missing_count, present_count)
+    return present_count, missing_count, seen, missing
+
+# presence: encoder sends raw "blob this frame" facts, debounce lives here
+plane_present_count, plane_missing_count, plane_seen, plane_absent = presence()   # plane_seen = a blob in either box for 2 s, plane_absent = no blob for 2 s
+near_present_count, near_missing_count, near_seen, near_missing = presence()         # was: box["near"]
+far_present_count, far_missing_count, far_seen, far_missing = presence()             # was: box["far"]
+
+blob_detected_layer = [gate(0.5)]
+connect([plane_seen], blob_detected_layer[0])                              # blob_detected fires while plane_seen is on
+
+# 25 neurons each - eyes of SNN (input layers)
+# thermometers: lowest threshold = band min, veto = band max, plane_absent blocks them until plane_seen
+def thermometer(floor):
+    return [gate(max((i+1) * 0.5, floor)) for i in range(25)]
+
+descent_near_layer = thermometer(min_near_delta)
+ascent_near_layer = thermometer(min_near_delta)
+
+descent_far_layer = thermometer(min_far_delta * far_dy_scale)
+ascent_far_layer = thermometer(min_far_delta * far_dy_scale)
+
+thermometers = {"descent_near": descent_near_layer, "ascent_near": ascent_near_layer,
+                "descent_far": descent_far_layer, "ascent_far": ascent_far_layer}
+veto = {"descent_near": gate(max_near_delta_away - EPS),
+        "ascent_near": gate(max_near_delta_torwards - EPS),
+        "descent_far": gate(max_far_delta * far_dy_scale - EPS),
+        "ascent_far": gate(max_far_delta * far_dy_scale - EPS)}
+for name, layer in thermometers.items():
+    for n in layer:
+        snn.create_synapse(veto[name], n, weight=INH)
+        snn.create_synapse(plane_absent, n, weight=INH)
 
 grow_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
 shrink_layer = [snn.create_neuron(threshold=((i+1) * 0.5)) for i in range(25)]
+for n in grow_layer + shrink_layer:
+    snn.create_synapse(plane_absent, n, weight=INH)                         # plane_absent blocks grow/shrink until plane_seen
 
-recent_descent_layer = [snn.create_neuron(threshold=0.5)]                   # one neuron because recent_descent is yes/no
-vanished_layer = [snn.create_neuron(threshold=(0.5)) for i in range(45)]    # 45 neurons to make the layer into a timer, one neuron / sec
-far_return_min_area = 20                                                    # far-box blob must be this big to count as the vanished plane returning
-vanish_dead_sec = 8                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
-returned_layer = [snn.create_neuron(threshold=0.5)]                         # on while a vanished plane is back (came back after the dead zone)
-plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
-plane_gone_layer = [snn.create_neuron(threshold=0.5)]                       # one-frame pulse when BOTH boxes have been empty 15 s
-near_gone_layer = [snn.create_neuron(threshold=0.5)]                        # one-frame pulse when the near box has been empty 15 s
-far_gone_layer = [snn.create_neuron(threshold=0.5)]                         # one-frame pulse when the far box has been empty 15 s
+# recent descent: was descent_streak >= min_descent_frames + frames_since_descent <= recent_descent_frames (10 s)
+descent_count = counter(5)
+recent_descent = latch()
+recent_timer = counter(frames(10))
+snn.create_synapse(descent_near_layer[0], descent_count, weight=1.0)
+set_reset(recent_descent, descent_count, recent_timer)
+snn.create_synapse(recent_descent, recent_timer, weight=1.0)
+snn.create_synapse(descent_near_layer[0], recent_timer, weight=-1.0)       # still descending = timer drains, so 10 s counts from the end
+recent_descent_layer = [recent_descent]                                     # one neuron because recent_descent is yes/no
 
-blob_detected_layer = [snn.create_neuron(threshold=0.5)]
+# was_descending + vanish (was: near seen + recent -> was_descending, near missing + was_descending -> frames_since_vanish = 0)
+was_descending = latch()
+descent_and_seen = gate(1.5)
+connect([near_seen, recent_descent], descent_and_seen)
+vanish_trigger = gate(1.5, refractory_period=5)                             # refractory = fires once
+connect([near_missing, was_descending], vanish_trigger)
+set_reset(was_descending, descent_and_seen, vanish_trigger)
+
+# vanish timer: 45 latches that hand off to the next one every second (was: frames_since_vanish // fps)
+vanished_layer = [latch() for i in range(45)]                               # 45 neurons to make the layer into a timer, one neuron / sec
+for k, cell in enumerate(vanished_layer):
+    tick = counter(round(FPS) - 1)                                          # 30-frame cells
+    snn.create_synapse(cell, tick, weight=1.0)
+    snn.create_synapse(tick, cell, weight=-10.0)
+    if k + 1 < len(vanished_layer):
+        snn.create_synapse(tick, vanished_layer[k + 1], weight=1.0)
+snn.create_synapse(vanish_trigger, vanished_layer[0], weight=1.0)
+for cell in vanished_layer[1:]:
+    snn.create_synapse(vanish_trigger, cell, weight=-10.0)                 # new vanish restarts the timer
+window_open = gate(0.5)                                                     # was: vanish_dead_zone <= frames_since_vanish < vanish_frames
+connect(vanished_layer[vanish_dead_sec:], window_open)
+
+# returned: a box's first seen frame inside the window; far blob must be plane-sized (was: median(areas) >= far_return_min_area)
+far_big = gate(far_return_min_area - 0.5)
+far_sized_count, far_sized = counter(SEEN_N), latch()
+snn.create_synapse(far_big, far_sized_count, weight=1.0)
+set_reset(far_sized, far_sized_count, far_missing_count)
+near_return, far_return = gate(1.5), gate(1.5)
+connect([edge(near_seen), window_open], near_return)
+connect([edge(far_sized), window_open], far_return)
+for r in (near_return, far_return):
+    for cell in vanished_layer:
+        snn.create_synapse(r, cell, weight=-10.0)                          # was: frames_since_vanish = None
+
+# gone pulses: once per empty stretch (was: n_confirmed / frames_confirmed_missing == plane_gone_frames)
+plane_gone_layer = [one_shot(plane_absent, plane_present_count, frames(plane_gone_sec))]   # one-frame pulse when BOTH boxes have been empty 15 s
+near_gone_layer = [one_shot(near_missing, near_present_count, frames(plane_gone_sec))]     # one-frame pulse when the near box has been empty 15 s
+far_gone_layer = [one_shot(far_missing, far_present_count, frames(plane_gone_sec))]        # one-frame pulse when the far box has been empty 15 s
+
+# returned latch per box (was: returned + returned_box), cleared by that box's gone pulse or after 75 s
+returned_near, returned_far, returned_timer = latch(), latch(), counter(frames(75))
+set_reset(returned_near, near_return, near_gone_layer[0])
+set_reset(returned_far, far_return, far_gone_layer[0])
+for r in (returned_near, returned_far):
+    snn.create_synapse(r, returned_timer, weight=1.0)
+    snn.create_synapse(returned_timer, r, weight=-10.0)
+returned_layer = [gate(0.5)]                                                # on while a vanished plane is back (came back after the dead zone)
+connect([returned_near, returned_far], returned_layer[0])
 
 learning_inputs = descent_near_layer + ascent_near_layer +\
          descent_far_layer + ascent_far_layer
@@ -133,7 +266,7 @@ touch_go_feat = snn.create_neuron(threshold=1.0)
 
 ascent_any = [ascent_near_layer[0], ascent_far_layer[0]]     # any ascent this frame
 for pre in ascent_any:
-    snn.create_synapse(pre, takeoff_feat, weight=0.6, stdp_enabled=False)    # 1 ascent alone fires takeoff_feat
+    snn.create_synapse(pre, takeoff_feat, weight=0.6, delay=5, stdp_enabled=False)    # 1 ascent alone fires takeoff_feat; delay 5 = returned's circuit settles first
     snn.create_synapse(pre, touch_go_feat, weight=0.4, stdp_enabled=False)   # 2 ascents = 0.8, not enough alone
 
 for pre in returned_layer:
@@ -219,20 +352,6 @@ def run_model(video):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
-    min_far_delta_away = 0.25        # away
-    max_far_delta_away = 1.5         # away
-    
-    min_near_delta_away = -6.0       # away
-    max_near_delta_away = -1.0       # away
-
-    min_far_delta_torwards = -1.5
-    max_far_delta_torwards = -0.25
-
-    far_dy_scale = 4.0               # far |dy| (0.25-1.5, moves in 0.5 px steps) -> near's 1-6 range, so far motion fires the thermometer layers
-
-    min_near_delta_torwards = 1.0
-    max_near_delta_torwards = 6.9
-
     min_far_area = 10
     max_far_area = 100
 
@@ -245,48 +364,13 @@ def run_model(video):
     near_diff_min = 24
     near_slope = 0.0913
 
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    descent_window = int(45 * fps) # how long recent_descent until leaked to 0
-    video_start = 0
-
-    frames_since_descent = None
-    frames_since_vanish = None
-    vanish_dead_zone = int(vanish_dead_sec * fps)   # reappearing sooner than this = a different aircraft, timer keeps running
-    vanish_frames = int(len(vanished_layer) * fps)  # timer length; after this nothing counts as returning
-    descent_streak = 0
-    plane_gone_frames = int(plane_gone_sec * fps)
-    frames_confirmed_missing = 0     # frames since plane_missing turned on (noise won't reset it)
-    recent_descent_frames = int(10 * fps)
-    min_descent_frames = 5
-
     near_y_old = None
     far_y_old = None
     old_near_area = None
     old_far_area = None
     frame_idx = 0
 
-    plane_seen = False
-    plane_seen_neuron = snn.create_neuron(threshold=0.5)
-    plane_missing = False
-    plane_missing_neuron = snn.create_neuron(threshold=0.5)
-    was_descending = False
-    was_descending_neuron = snn.create_neuron(threshold=0.5)
-    returned = False
-
-    frames_plane_seen = 0
-    min_frames_plane_seen = int(2 * fps)
-    frames_plane_missing = 0
-    min_frames_plane_missing = int(2 * fps)
-    frame_first_seen = None
-    frame_disappeared = None
-
-    # per-box presence (same 2 s rules as the global state); the connectors below bridge the boxes
-    box = {b: {"seen": False, "was_seen": False, "missing": False, "n_seen": 0, "n_missing": 0, "n_confirmed": 0,
-               "areas": []} for b in ("near", "far")}
-    gone_layer = {"near": near_gone_layer, "far": far_gone_layer}
-    returned_box = None
-
-    segments = []                    # (first_seen, disappeared) per aircraft segment, kept in memory
+    snn.add_spike(0, plane_absent, 1.0)                                    # plane_absent starts on, so plane_seen starts off
 
     while True:
         ret, frame = cap.read()
@@ -299,166 +383,58 @@ def run_model(video):
         near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
         far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
 
-        is_blob = near_y is not None or far_y is not None
+        # presence: raw "blob this frame" facts in, the presence() circuits do the debouncing
+        is_blob = float(near_y is not None or far_y is not None)
+        snn.add_spike(frame_idx, plane_present_count, is_blob)
+        snn.add_spike(frame_idx, plane_missing_count, 1.0 - is_blob)
+        for present_count, missing_count, y in ((near_present_count, near_missing_count, near_y),
+                                                (far_present_count, far_missing_count, far_y)):
+            present = float(y is not None)
+            snn.add_spike(frame_idx, present_count, present)
+            snn.add_spike(frame_idx, missing_count, 1.0 - present)
+        if far_y is not None:
+            snn.add_spike(frame_idx, far_big, far_area)                     # far_big checks plane-sized
 
-        for b, present, area in (("near", near_y is not None, near_area), ("far", far_y is not None, far_area)):
-            st = box[b]
-            if present:
-                st["areas"] = (st["areas"] + [area])[-min_frames_plane_seen:]    # blob size over the confirmation window
-                st["n_missing"] = 0
-                st["n_seen"] += 1
-                if st["n_seen"] > min_frames_plane_seen:
-                    st["seen"], st["missing"] = True, False
-            else:
-                st["areas"] = []
-                st["n_seen"] = 0
-                st["n_missing"] += 1
-                if st["n_missing"] > min_frames_plane_missing:
-                    st["missing"], st["seen"] = True, False
+        # motion: signed value in, thermometer floors + vetoes do the band checks, plane_absent blocks it until plane_seen
+        for y, y_old, scale, descent, ascent in ((near_y, near_y_old, 1.0, "descent_near", "ascent_near"),
+                                                 (far_y, far_y_old, far_dy_scale, "descent_far", "ascent_far")):
+            if y is not None and y_old is not None:
+                value = (y - y_old) * scale                                 # = -dy * scale: positive when moving down the screen
+                snn.add_spike(frame_idx, veto[descent], value)
+                snn.add_spike(frame_idx, veto[ascent], -value)
+                for n in thermometers[descent]:
+                    snn.add_spike(frame_idx + 1, n, value)                  # +1 frame so it lands with its veto
+                for n in thermometers[ascent]:
+                    snn.add_spike(frame_idx + 1, n, -value)
 
-        if is_blob:
-            frames_plane_missing = 0
-            frame_disappeared = None
-            frames_plane_seen += 1
-            if frames_plane_seen == min_frames_plane_seen and frame_first_seen is None:
-                frame_first_seen = frame_idx
-            elif frames_plane_seen > min_frames_plane_seen:
-                plane_seen = True
-                plane_seen_neuron.add_spike(frame_idx, 1.0)
-                plane_missing = False
-        else:
-            frames_plane_seen = 0
-            if frames_plane_missing == 0 and frame_disappeared is None:
-                frame_disappeared = frame_idx
-            frames_plane_missing += 1
-            if frames_plane_missing == min_frames_plane_missing and frame_first_seen is not None:
-                segments.append((frame_first_seen, frame_disappeared))
-                frame_first_seen = None
-                frame_disappeared = None
+        # grow / shrink (left as python for now)
+        if near_y is not None and near_y_old is not None:
+            if old_near_area is None:
+                old_near_area = near_area
+            diff_near_area = near_area - old_near_area
+            old_near_area = near_area
+            if diff_near_area > near_diff_min:
+                value = 1 + (diff_near_area - near_diff_min) * near_slope
+                for n in grow_layer:
+                    snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
+            elif diff_near_area < -near_diff_min:
+                value = 1 + (-diff_near_area - near_diff_min) * near_slope
+                for n in shrink_layer:
+                    snn.add_spike(frame_idx, n, value, exist="add")
 
-            elif frames_plane_missing > min_frames_plane_missing:
-                plane_missing = True
-                plane_missing_neuron.add_spike(frame_idx, 1.0)
-                plane_seen = False
-
-        if plane_seen:
-            for n in blob_detected_layer:
-                snn.add_spike(frame_idx, n, 13)
-
-        descent_fired = False
-
-        if plane_seen:
-            if near_y is not None and near_y_old is not None:
-                near_dy = get_slope(near_y_old, near_y)
-                if min_near_delta_away < near_dy < max_near_delta_away:
-                    descent_fired = True
-                    for n in descent_near_layer:                                        # away
-                        snn.add_spike(frame_idx, n, abs(near_dy))
-
-                elif  min_near_delta_torwards < near_dy < max_near_delta_torwards:
-                    for n in ascent_near_layer:                                         # torwards
-                        snn.add_spike(frame_idx, n, abs(near_dy))
-
-                if near_area > min_near_area:
-                    if old_near_area is None:
-                        old_near_area = near_area
-                    diff_near_area = near_area - old_near_area
-                    old_near_area = near_area
-                    if diff_near_area > near_diff_min:
-                        value = 1 + (diff_near_area - near_diff_min) * near_slope
-                        for n in grow_layer:
-                            snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
-                    elif diff_near_area < -near_diff_min:
-                        value = 1 + (-diff_near_area - near_diff_min) * near_slope
-                        for n in shrink_layer:
-                            snn.add_spike(frame_idx, n, value, exist="add")
-
-
-
-            if far_y is not None and far_y_old is not None:
-                far_dy = get_slope(far_y_old, far_y)
-                if min_far_delta_away < far_dy < max_far_delta_away:
-                    for n in ascent_far_layer:                              # away
-                        snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
-
-                if min_far_delta_torwards < far_dy < max_far_delta_torwards:
-                    for n in descent_far_layer:                             # torwards
-                        snn.add_spike(frame_idx, n, abs(far_dy) * far_dy_scale)
-
-                if far_area > 1:
-                    if old_far_area is None:
-                        old_far_area = far_area
-                    diff_far_area = far_area - old_far_area
-                    old_far_area = far_area
-                    if diff_far_area > far_diff_min:
-                        value = 1 + (diff_far_area - far_diff_min) * far_slope
-                        for n in grow_layer:
-                            snn.add_spike(frame_idx, n, value, exist='add')
-                    elif diff_far_area < -far_diff_min:
-                        value = 1 + (-diff_far_area - far_diff_min) * far_slope
-                        for n in shrink_layer:
-                            snn.add_spike(frame_idx, n, value, exist='add')
-
-        if frames_since_descent is not None:
-            frames_since_descent += 1
-        if frames_since_vanish is not None:
-            frames_since_vanish += 1
-
-        if descent_fired:
-            descent_streak += 1
-        else:
-            descent_streak = 0
-        if descent_streak >= min_descent_frames:
-            frames_since_descent = 0
-
-        # vanish: the descending plane (near box) disappears, even if the far box is busy
-        if box["near"]["seen"] and near_y is not None:
-            if frames_since_descent is not None and frames_since_descent <= recent_descent_frames:
-                was_descending = True
-                was_descending_neuron.add_spike(frame_idx, 1.0)
-        elif box["near"]["missing"] and was_descending:
-            frames_since_vanish = 0
-            was_descending = False
-
-        if frames_since_descent is not None and frames_since_descent < descent_window:
-            for n in recent_descent_layer:
-                snn.add_spike(frame_idx, n, 13)
-
-        # returned: a plane is confirmed in EITHER box during the vanish window -> same aircraft back
-        for b in ("near", "far"):
-            st = box[b]
-            if st["seen"] and not st["was_seen"]:
-                plane_sized = b == "near" or np.median(st["areas"]) >= far_return_min_area
-                if frames_since_vanish is not None and vanish_dead_zone <= frames_since_vanish < vanish_frames and plane_sized:
-                    returned = True
-                    returned_box = b
-                    returned_frames = 0
-                    frames_since_vanish = None
-            st["was_seen"] = st["seen"]
-            # per-box gone pulse; clears returned if it was this box's plane
-            st["n_confirmed"] = st["n_confirmed"] + 1 if st["missing"] else 0
-            if st["n_confirmed"] == plane_gone_frames:
-                for n in gone_layer[b]:
-                    snn.add_spike(frame_idx, n, 13)
-                if returned and returned_box == b:
-                    returned = False
-        was_plane_seen = plane_seen
-        frames_confirmed_missing = frames_confirmed_missing + 1 if plane_missing else 0
-        if frames_confirmed_missing == plane_gone_frames:               # plane has left? one pulse
-            for n in plane_gone_layer:
-                snn.add_spike(frame_idx, n, 13)
-        if returned:
-            returned_frames += 1
-            if returned_frames > int(75 * fps):              # returned only covers one climb-out
-                returned = False
-        if returned:
-            for n in returned_layer:
-                snn.add_spike(frame_idx, n, 13)
-
-        if frames_since_vanish is not None:
-            sec = int(frames_since_vanish // fps)
-            if sec < len(vanished_layer):
-                snn.add_spike(frame_idx, vanished_layer[sec], 13)
+        if far_y is not None and far_y_old is not None:
+            if old_far_area is None:
+                old_far_area = far_area
+            diff_far_area = far_area - old_far_area
+            old_far_area = far_area
+            if diff_far_area > far_diff_min:
+                value = 1 + (diff_far_area - far_diff_min) * far_slope
+                for n in grow_layer:
+                    snn.add_spike(frame_idx, n, value, exist='add')
+            elif diff_far_area < -far_diff_min:
+                value = 1 + (-diff_far_area - far_diff_min) * far_slope
+                for n in shrink_layer:
+                    snn.add_spike(frame_idx, n, value, exist='add')
 
         if near_y is None:
             old_near_area = None
@@ -469,15 +445,9 @@ def run_model(video):
         far_y_old = far_y
         frame_idx += 1
 
-    if frames_plane_missing == 0:
-        frame_disappeared = frame_idx - 1
-
-    if frame_first_seen is not None:
-        segments.append((frame_first_seen, frame_disappeared))
-
-    return frame_idx, video_start, segments
+    return frame_idx
     
-frame_idx, _, _ = run_model(video9)
+frame_idx = run_model(video9)
 
 # Near
 descent_near_ids = []
@@ -611,25 +581,27 @@ print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 snn.reset()                                                              # to clear spike history for accurate spike counts.
 
-frame_num, video_start, segments = run_model(video10)
+frame_num = run_model(video10)
 snn.simulate(time_steps=frame_num)
 
-print()
-print("NEAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_near_ids ].sum())
-print("NEAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_near_ids ].sum()) # 0; not possible
-print("FAR Descent layer", snn.ispikes[video_start:(video_start+frame_num), descent_far_ids ].sum()) # 0; not possible
-print("FAR Ascent layer", snn.ispikes[video_start:(video_start+frame_num), ascent_far_ids ].sum())
-print("Vanished layer", snn.ispikes[video_start:(video_start+frame_num), vanish_ids ].sum())
-print("Takeoff layer", snn.ispikes[video_start:(video_start+frame_num), takeoff_ids ].sum())
-print("Landing layer", snn.ispikes[video_start:(video_start+frame_num), landing_ids ].sum())
-print("Touch/go layer", snn.ispikes[video_start:(video_start+frame_num), touch_go_ids ].sum())
-print()
+need_diagnostic = False
+if need_diagnostic == True:
+    print()
+    print("NEAR Descent layer", snn.ispikes[0:frame_num, descent_near_ids ].sum())
+    print("NEAR Ascent layer", snn.ispikes[0:frame_num, ascent_near_ids ].sum())
+    print("FAR Descent layer", snn.ispikes[0:frame_num, descent_far_ids ].sum())
+    print("FAR Ascent layer", snn.ispikes[0:frame_num, ascent_far_ids ].sum())
+    print("Vanished layer", snn.ispikes[0:frame_num, vanish_ids ].sum())
+    print("Takeoff layer", snn.ispikes[0:frame_num, takeoff_ids ].sum())
+    print("Landing layer", snn.ispikes[0:frame_num, landing_ids ].sum())
+    print("Touch/go layer", snn.ispikes[0:frame_num, touch_go_ids ].sum())
+    print()
 
 def test_video(video, video_label, diagnostic_enabled):
     snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False)
     snn.reset()
 
-    frame_num, _, _ = run_model(video)
+    frame_num = run_model(video)
     snn.simulate(time_steps=frame_num)
     rows = snn.ispikes[0 : frame_num]
 
@@ -639,10 +611,7 @@ def test_video(video, video_label, diagnostic_enabled):
 
     print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
     print("Operations:", landings + takeoffs + 2 * touch_gos) # In official reporting, touch/go counts as 2 movements
-
-    print("Landing at frames:", np.where(rows[:, landing_decision[0].idx])[0])
-    print("Takeoff at frames:", np.where(rows[:, takeoff_decision[0].idx])[0])
-    print("Touch & go at frames:", np.where(rows[:, touch_go_decision[0].idx])[0])
+    print()
 
     if diagnostic_enabled == True:
         measure = {
@@ -653,6 +622,11 @@ def test_video(video, video_label, diagnostic_enabled):
             "takeoff_layer": takeoff_ids,
             "touch_go_layer": touch_go_ids,
         }
+
+
+        print("Landing at frames:", np.where(rows[:, landing_decision[0].idx])[0])
+        print("Takeoff at frames:", np.where(rows[:, takeoff_decision[0].idx])[0])
+        print("Touch & go at frames:", np.where(rows[:, touch_go_decision[0].idx])[0])
 
         labels = ["takeoff", "landing", "touch/go"]
         results = {lab: {layer: [] for layer in measure} for lab in labels}
@@ -682,8 +656,6 @@ def test_video(video, video_label, diagnostic_enabled):
                 v = np.array(vals)
                 print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
 
-print("VIDEO9 test")
-test_video(video9, video9_labels, diagnostic_enabled=True)
 print("VIDEO10 test")
 test_video(video10, video10_labels, diagnostic_enabled=True)
 
