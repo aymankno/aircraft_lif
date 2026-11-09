@@ -347,6 +347,22 @@ with open(video9_labels) as f:
             for n in defined_directions[direction]:
                 snn.add_spike((f_idx + 1), n, 9)
 
+def run_reverse(video, chunk=100):
+    cap = cv2.VideoCapture(video)
+    end = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    while end > 0:
+        start = max(0, end-chunk)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start)
+        frames = []
+        for _ in range(end-start):
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frames.append(frame)
+        yield from reversed(frames)
+        end = start
+    cap.release()
+
 def run_model(video):
     cap = cv2.VideoCapture(video)
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -657,7 +673,7 @@ def test_video(video, video_label, diagnostic_enabled):
                 print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
 
 print("VIDEO10 test")
-test_video(video10, video10_labels, diagnostic_enabled=True)
+test_video(run_reverse(video10), video10_labels, diagnostic_enabled=True)
 
 unlabeled_videos = [video1, video2, video3, video4, video5, video6, video7, video8]
 
@@ -665,5 +681,5 @@ print("Unlabeled tests")
 idx = 0
 for video in unlabeled_videos:
     print(f"Video {idx+1}")
-    test_video(video, None, diagnostic_enabled=False)
+    test_video(run_reverse(video), None, diagnostic_enabled=False)
     idx += 1
