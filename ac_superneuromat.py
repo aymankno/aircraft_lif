@@ -363,9 +363,16 @@ def run_reverse(video, chunk=100):
         end = start
     cap.release()
 
-def run_model(video):
+def run_forward(video):
     cap = cv2.VideoCapture(video)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            return
+        yield frame
+
+def run_model(video, reverse_video):
+    source = run_reverse(video) if reverse_video else run_forward(video)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
     min_far_area = 10
@@ -388,10 +395,7 @@ def run_model(video):
 
     snn.add_spike(0, plane_absent, 1.0)                                    # plane_absent starts on, so plane_seen starts off
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+    for frame in source:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         mask = backSub.apply(gray)
         near_mask = mask.copy()
@@ -463,7 +467,7 @@ def run_model(video):
 
     return frame_idx
     
-frame_idx = run_model(video9)
+frame_idx = run_model(video9, reverse_video=False)
 
 # Near
 descent_near_ids = []
@@ -597,11 +601,11 @@ print("VIDEO TESTING BELOW:")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 snn.reset()                                                              # to clear spike history for accurate spike counts.
 
-frame_num = run_model(video10)
-snn.simulate(time_steps=frame_num)
-
 need_diagnostic = False
 if need_diagnostic == True:
+
+    frame_num = run_model(video10, reverse_video=False)
+    snn.simulate(time_steps=frame_num)
     print()
     print("NEAR Descent layer", snn.ispikes[0:frame_num, descent_near_ids ].sum())
     print("NEAR Ascent layer", snn.ispikes[0:frame_num, ascent_near_ids ].sum())
@@ -617,7 +621,7 @@ def test_video(video, video_label, diagnostic_enabled):
     snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False)
     snn.reset()
 
-    frame_num = run_model(video)
+    frame_num = run_model(video, reverse_video=True)
     snn.simulate(time_steps=frame_num)
     rows = snn.ispikes[0 : frame_num]
 
@@ -673,7 +677,7 @@ def test_video(video, video_label, diagnostic_enabled):
                 print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
 
 print("VIDEO10 test")
-test_video(run_reverse(video10), video10_labels, diagnostic_enabled=True)
+test_video(video10, video10_labels, diagnostic_enabled=True)
 
 unlabeled_videos = [video1, video2, video3, video4, video5, video6, video7, video8]
 
@@ -681,5 +685,5 @@ print("Unlabeled tests")
 idx = 0
 for video in unlabeled_videos:
     print(f"Video {idx+1}")
-    test_video(run_reverse(video), None, diagnostic_enabled=False)
+    test_video(video, None, diagnostic_enabled=False)
     idx += 1
