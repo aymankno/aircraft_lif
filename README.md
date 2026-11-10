@@ -4,12 +4,12 @@ Ayman Aghel - 9/14/2026
 V1 = aircraft_counter.py - Custom LIF network coded manually in Python
 V2 = ac_superneuromat.py - SuperNeuroMAT spiking neural network
 
-video9, video10 - [YouTube Link](https://www.youtube.com/playlist?list=PLKrqNoJmfkQE)
+video1-10 - [YouTube Link](https://www.youtube.com/playlist?list=PLKrqNoJmfkQE)
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
-Latest changes (11/3) - Correctly classified 41/41 events, live implementation of model
-After testing on videos 1-8 in addition to videos 9 and 10, the model correctly identified 41/41 events without incorrectly identifying or missing any. This is a big milestone for the aircraft_counter repository! To prepare for further testing of the model live, I coded the live implementation of the model. The live implementation is comprised of three files: an initializer with the SNN enviornment, a trainer where the model saves weights to a seperate file, and the live file that uses the saved weights and runs the model in real time rather than scheduling spikes. The live model is in a completely seperate enviornment from ac_superneuromat, allowing for the testing of new features with ac_superneuromat and filmed videos. Planning to begin aircraft classification in next changelog.
+Latest changes (11/9) - Converted most all possible static variables to neurons, began test for reversed traffic
+Identified noticable gap in which logic based architecture was, plainly, neurons tied to if statements in Python. Considering the fact that a real chip would not have Python, converted most all static variables and all booleans into neurons, eliminated un-essential if statements and replaced with synapses. Created definitions for easier creating of neurons, including gate, time, and other types of neurons to be created with simple calls of designated functions. Tested model with reversed footage, 0s across, planning to troubleshoot in the next session. Began considering future dynamic zones for long term implementation due to camera shifting and possible obstruction of view.
 
 ## License
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
@@ -171,6 +171,13 @@ Notes: Play video of video10 on a device placed in front of ac_live to test? Als
 Note to reader: For FAA grants, aircraft event counts are required in addition to aircraft type counts (piston, jet, etc). Additionally, in official reporting, touch & goes are counted as two movements rather than one. This is why final_ops in ac_live and operations in ac_superneuromat include (2 * touch_gos).
 
 Future changes: Test ac_superneuromat on reversed video, investigate the 100% accuracies, consider fate of grow/shrink layers, upload video1-8 to YouTube? Begin classification input layers, investigate ways to distinguish aircraft with exclusively cv2 (maybe size ratio?). Also, consider using grow/shrink layers as gauge for speed to further classify aircraft type.
+
+### Complete overhaul of ac_superneuromat (test file) to convert standard booleans & static var. to neurons, began writing test for reversed video - 11/9/2026
+To reduce reliance of model on Python, converted all booleans in ac_superneuromat (expierimental/test code) to neurons for less if statements; Python. Created definitions for different types of neurons for easier creation including latch, counter, etc. To eliminate almost all un-essential if statements, created synapse from the new neurons to designated layers for more neuromorph-icity. Also, some changes to initialization of neuron layers to match the new 'creation' architecture. During conversion, I realized that the shrinking & growing layers are still there, idle, so I began testing the model without them on reversed video to test. Although, results came back with 0s across the board on reversed testing footage. Planning to troubleshoot next session, confirm that the near and far dy parameters are capable, and perhaps consider using the grow/shrink layer again. Also, while on the chapter of enhancing neuromorph-icity, I began considering an evolving system for far and near zones in contrast to current static zones. I feel that this is essential for the long term success of the model, as the camera will definitely shift. Considering a tile system in which if a plane is detected, the preset tiles it flies over are added to a heatmap over time. Although, not yet tested.
+
+Notes: Double check near & far dy parameters to confirm not adjusted to away traffic. Don't remove grow/shrink layer, may be essential for future zone dynamics, perhaps traffic direction for event classification in general. Also, maybe for speed in aircraft type classification?
+
+Future changes: Troubleshoot and fix reversed traffic! Create an evolving heatmap of hidden on screen tiles that planes 'hit' as they land/takeoff for dynamic zone switching, perhaps tie neurons into it? Research possible ways to elinate need for CV2, including manual backsub??
 
 ## Acknowledgements:
 
