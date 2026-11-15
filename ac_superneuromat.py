@@ -135,6 +135,22 @@ recent_descent = latch()
 recent_timer = counter(frames(10))
 snn.create_synapse(descent_near_layer[0], descent_count, weight=1.0)
 set_reset(recent_descent, descent_count, recent_timer)
+down_steps = [gate(0.25), gate(0.75)]
+up_steps = [gate(0.25), gate(0.75)]
+slow_win = gate(2.75)
+for steps, w in ((down_steps, 0.5), (up_steps, -0.5)):
+    for s in steps:
+        prev = s
+        for k in range(15):
+            r = gate(0.5)
+            snn.create_synapse(prev, r, weight=1.0)
+            snn.create_synapse(r, slow_win, weight=w)
+            prev = r
+slow_desc_acc = snn.create_neuron(threshold=30, leak=0.3)
+snn.create_synapse(slow_win, slow_desc_acc, weight=1.0)
+slow_ok = gate(0.5)
+snn.create_synapse(slow_desc_acc, slow_ok, weight=1.0)
+snn.create_synapse(slow_ok, recent_descent, weight=1.0)
 snn.create_synapse(recent_descent, recent_timer, weight=1.0)
 snn.create_synapse(descent_near_layer[0], recent_timer, weight=-1.0)       # still descending = timer drains, so 10 s counts from the end
 recent_descent_layer = [recent_descent]                                     # one neuron because recent_descent is yes/no
@@ -177,6 +193,8 @@ for trigger in (vanish_trigger, far_vanish_trigger):                       # eit
         snn.create_synapse(trigger, cell, weight=-10.0)                    # new vanish restarts the timer
 window_open = gate(0.5)                                                     # was: vanish_dead_zone <= frames_since_vanish < vanish_frames
 connect(vanished_layer[vanish_dead_sec:], window_open)
+for cell in vanished_layer:
+    snn.create_synapse(cell, slow_ok, weight=-1.0)
 
 # returned: a box's first seen frame inside the window; far blob must be plane-sized (was: median(areas) >= far_return_min_area)
 far_big = gate(far_return_min_area - 0.5)
@@ -315,6 +333,8 @@ for pre in returned_layer:
 # near climb (torwards takeoff): short climbs through the near box get their own accumulator, so far climb-outs keep threshold 8
 near_climb_frames = 30      # frames of near ascent (not returned) to call a takeoff; tune on reversed video 9
 near_takeoff_feat = snn.create_neuron(threshold=0.5)
+snn.create_synapse(near_back, near_takeoff_feat, weight=-2.0)
+snn.create_synapse(near_back, takeoff_feat, weight=-2.0)
 snn.create_synapse(ascent_near_layer[0], near_takeoff_feat, weight=1.0, delay=5, stdp_enabled=False)   # delay 5 = returned settles first
 for pre in returned_layer:
     snn.create_synapse(pre, near_takeoff_feat, weight=-2.0, stdp_enabled=False)                        # climbing after a return = touch/go
@@ -471,6 +491,11 @@ def run_model(video, reverse_video):
                                                  (far_y, far_y_old, far_dy_scale, "descent_far", "ascent_far")):
             if y is not None and y_old is not None:
                 value = (y - y_old) * scale                                 # = -dy * scale: positive when moving down the screen
+                if descent == "descent_near":
+                    for n in down_steps:
+                        snn.add_spike(frame_idx, n, value)
+                    for n in up_steps:
+                        snn.add_spike(frame_idx, n, -value)
                 snn.add_spike(frame_idx, veto[descent], value)
                 snn.add_spike(frame_idx, veto[ascent], -value)
                 for n in thermometers[descent]:
