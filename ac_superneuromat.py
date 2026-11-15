@@ -35,7 +35,14 @@ else:
 
 start_time = time.time()
 def get_time():
-    return f"{time.time() - start_time:.3f}sec"
+    secs = time.time() - start_time
+    if secs < 60:
+        elapsed_time = f"{time.time() - start_time:.3f}secs"
+    else:
+        time_mins = int(secs // 60)
+        time_secs = int(secs % 60)  
+        elapsed_time = f"{time_mins}:{time_secs}"
+    return elapsed_time
 
 min_near_delta = 1.0
 max_near_delta_away = 6.0
@@ -739,42 +746,44 @@ def test_video(video, video_label, diagnostic_enabled, reversed):
         lag = {"takeoff": 5 * 30, "landing": 45 * 30, "touch/go": 5 * 30}   # frames after the event ends to keep counting (around 30 fps); landing decides around 40 sec after the plane leaves
         lead = {"takeoff": 10 * 30, "landing": 0, "touch/go": 0} # for accurate scoring 
 
-        with open(video_label) as f:
-            next(f)
-            for row in f:
-                row = row.strip()
-                if not row:
-                    continue
-                start, end, area, movement, direction = [x.strip() for x in row.split(',')]
-                start, end = int(start), int(end)
+        if video_label is not None:
+            with open(video_label) as f:
+                next(f)
+                for row in f:
+                    row = row.strip()
+                    if not row:
+                        continue
+                    start, end, area, movement, direction = [x.strip() for x in row.split(',')]
+                    start, end = int(start), int(end)
 
-                window = rows[start - lead[movement]:end + lag[movement]]
-                for layer, ids in measure.items():
-                    avg_frame = window[:, ids].sum()
-                    results[movement][layer].append(avg_frame)
+                    window = rows[start - lead[movement]:end + lag[movement]]
+                    for layer, ids in measure.items():
+                        avg_frame = window[:, ids].sum()
+                        results[movement][layer].append(avg_frame)
 
-        for lab in labels:
-            print(f"\n{lab.upper()} events:")
-            for layer, vals in results[lab].items():
-                if not vals:
-                    continue
-                v = np.array(vals)
-                print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
+            for lab in labels:
+                print(f"\n{lab.upper()} events:")
+                for layer, vals in results[lab].items():
+                    if not vals:
+                        continue
+                    v = np.array(vals)
+                    print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
 
-print(f"VIDEO10 test fwd . . . {get_time()}:")
-test_video(video10, video10_labels, diagnostic_enabled=troubleshoot, reversed=False)
+print(f"VIDEO10 test (reversed) . . . {get_time()}:")
+test_video(video10, video10_labels, diagnostic_enabled=troubleshoot, reversed=True)
 print(f"VIDEO10 finished . . . {get_time()}")
 
 unlabeled_videos = [video1, video2, video3, video4, video5, video6, video7, video8]
 
-print(f"Unlabeled tests (reversed) at {get_time()}")
+print(f"Unlabeled tests (fwd) at {get_time()}")
 idx = 0
 for video in unlabeled_videos:
+    print()
     print(f"Video {idx+1}")
-    test_video(video, None, diagnostic_enabled=troubleshoot, reversed=True)
+    test_video(video, None, diagnostic_enabled=troubleshoot, reversed=False)
     idx += 1
 
 elapsed = time.time() - start_time
 full_time_mins = int(elapsed // 60)
 full_time_secs = int(elapsed % 60)
-print(f"FULL RUN COMPLETE . . . {get_time()}; {full_time_mins}:{full_time_secs:02d}")
+print(f"FULL RUN COMPLETE . . . {get_time()}")
