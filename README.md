@@ -179,6 +179,13 @@ Notes: Double check near & far dy parameters to confirm not adjusted to away tra
 
 Future changes: Troubleshoot and fix reversed traffic! Create an evolving heatmap of hidden on screen tiles that planes 'hit' as they land/takeoff for dynamic zone switching, perhaps tie neurons into it? Research possible ways to elinate need for CV2, including manual backsub??
 
+### Fixes for reversed traffic - 11/15/2026
+Added numerous fixes for reversing traffic over past few days. First, I fixed a fundmental block that blocked near zones from counting takeoffs, and vice-versa for far zones by mirroring. Then, for readability, I made the teacher spike and other troubleshooting print-outs optional in the start, and for reference, I added run times for each checkpoint (current total runtime is 12:08 on my computer). Additionally, several commits were dedicated to changing returned to be based on if aircraft actually ascended when seen again rather than just being seen for a certain amount of time. Then, changed that dy having to ascend to accumulate over 15 frames rather than per frame for additonal accuracy, especially due to noise and fluctuations from OpenCV. General cleanup of code (and notes, which were abundant in neuron initialization!), and wrapped up by preventing plane_gone from overriding an active vanished timer. Still expierimental and likely pending some key bug fixes before pushing to the larger LIVE version. Issues with near & far boxes as outlined here encourage the idea of a flucutant, neuron-based tile system for dynamic zones (near & far). Absolute 15/15 reversed and forward accuracy on videos1-8.
+
+Notes: Grow/shrink continue to stay, likely going to be used for dynamic zones (changing the current fixed boxes for near and far). Next changed should be those zones unless recieve information on aircraft classifcation (LARGEST PRIORITY) from prof. 
+
+Future changes: Dynamic zones with neurons due to potential camera shifting, remove more Python if statements (not the troubleshoot at start of ac_superneuromat), aircraft classifcation feedback (#1 PRIORITY!!!). 
+
 ## Acknowledgements:
 
 ```bibtex
