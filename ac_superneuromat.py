@@ -138,6 +138,7 @@ set_reset(recent_descent, descent_count, recent_timer)
 down_steps = [gate(0.25), gate(0.75)]
 up_steps = [gate(0.25), gate(0.75)]
 slow_win = gate(2.75)
+slow_rise = gate(2.75)
 for steps, w in ((down_steps, 0.5), (up_steps, -0.5)):
     for s in steps:
         prev = s
@@ -145,12 +146,17 @@ for steps, w in ((down_steps, 0.5), (up_steps, -0.5)):
             r = gate(0.5)
             snn.create_synapse(prev, r, weight=1.0)
             snn.create_synapse(r, slow_win, weight=w)
+            snn.create_synapse(r, slow_rise, weight=-w)
             prev = r
 slow_desc_acc = snn.create_neuron(threshold=30, leak=0.3)
 snn.create_synapse(slow_win, slow_desc_acc, weight=1.0)
 slow_ok = gate(0.5)
 snn.create_synapse(slow_desc_acc, slow_ok, weight=1.0)
 snn.create_synapse(slow_ok, recent_descent, weight=1.0)
+rise_acc = snn.create_neuron(threshold=30, leak=0.3)
+snn.create_synapse(slow_rise, rise_acc, weight=1.0)
+near_rising = latch()
+set_reset(near_rising, rise_acc, near_missing_count)
 snn.create_synapse(recent_descent, recent_timer, weight=1.0)
 snn.create_synapse(descent_near_layer[0], recent_timer, weight=-1.0)       # still descending = timer drains, so 10 s counts from the end
 recent_descent_layer = [recent_descent]                                     # one neuron because recent_descent is yes/no
@@ -205,8 +211,8 @@ near_back_trig = gate(1.5)
 connect([edge(near_seen), window_open], near_back_trig)
 near_back = latch()
 set_reset(near_back, near_back_trig, near_missing_count)
-near_still = gate(1.5)
-connect([near_back, near_seen], near_still)
+near_still = gate(2.5)
+connect([near_back, near_seen, near_rising], near_still)
 stay_acc = snn.create_neuron(threshold=84, leak=0.3)
 snn.create_synapse(near_still, stay_acc, weight=1.0)
 near_stayed = latch()
@@ -696,8 +702,8 @@ def test_video(video, video_label, diagnostic_enabled, reversed):
     snn.reset()
 
     frame_num = run_model(video, reverse_video=reversed)
-    snn.simulate(time_steps=frame_num)
-    rows = snn.ispikes[0 : frame_num]
+    snn.simulate(time_steps=frame_num + frames(45))
+    rows = snn.ispikes[0 : frame_num + frames(45)]
 
     landings    = rows[:, landing_decision[0].idx].sum()
     takeoffs    = rows[:, takeoff_decision[0].idx].sum()
