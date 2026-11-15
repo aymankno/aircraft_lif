@@ -64,32 +64,8 @@ with open(video9_labels) as f:
             for n in defined_directions[direction]:
                 net.snn.add_spike((f_idx + 1), n, 9)
 
-def run_reverse(video, chunk=100):
-    cap = cv2.VideoCapture(video)
-    end = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    while end > 0:
-        start = max(0, end-chunk)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start)
-        frames = []
-        for _ in range(end-start):
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frames.append(frame)
-        yield from reversed(frames)
-        end = start
-    cap.release()
-
-def run_forward(video):
-    cap = cv2.VideoCapture(video)
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            return
-        yield frame
-
-def run_model(video, reverse_video):
-    source = run_reverse(video) if reverse_video else run_forward(video)
+def run_model(video):
+    source = video
     backSub = cv2.createBackgroundSubtractorMOG2()
 
     min_far_area = 10
