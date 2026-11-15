@@ -64,8 +64,16 @@ with open(video9_labels) as f:
             for n in defined_directions[direction]:
                 net.snn.add_spike((f_idx + 1), n, 9)
 
+def run_forward(video):
+    cap = cv2.VideoCapture(video)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            return
+        yield frame
+
 def run_model(video):
-    source = video
+    source = run_forward(video)
     backSub = cv2.createBackgroundSubtractorMOG2()
 
     min_far_area = 10
@@ -164,7 +172,7 @@ def run_model(video):
 
     return frame_idx
     
-frame_idx = run_model(video9, reverse_video=False)
+frame_idx = run_model(video9)
 net.snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spike
 np.save("trained_weights.npy", net.snn.weight_mat())
 print("Training completed, weights saved.")
