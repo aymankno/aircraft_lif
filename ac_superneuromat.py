@@ -366,6 +366,12 @@ for pre in ascent_any:
 
 for post in landing_layer:
     feature_synapses.append(snn.create_synapse(landing_feat, post, weight=0.0, stdp_enabled=False))
+landing_clear = gate(0.5)
+snn.create_synapse(plane_gone_layer[0], landing_accumulator[0], weight=0.0, stdp_enabled=False, exist="overwrite")
+snn.create_synapse(plane_gone_layer[0], landing_clear, weight=1.0)
+for cell in vanished_layer:
+    snn.create_synapse(cell, landing_clear, weight=-1.0)
+snn.create_synapse(landing_clear, landing_accumulator[0], weight=-0.5 * landing_accumulator[0].threshold)
 
 NEAR_BOX = (468, 1, 967, 747)
 FAR_BOX  = (974, 604, 265, 151)
