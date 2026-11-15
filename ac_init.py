@@ -349,6 +349,7 @@ def build_network():
         snn.create_synapse(cell, landing_clear, weight=-1.0)
     snn.create_synapse(landing_clear, landing_accumulator[0], weight=-0.5 * landing_accumulator[0].threshold)
 
+    # decisions
     takeoff_decision_ids = []
     for neuron in takeoff_decision:
         takeoff_decision_ids.append(neuron.idx)
@@ -360,6 +361,60 @@ def build_network():
     touch_go_decision_ids = []
     for neuron in touch_go_decision:
         touch_go_decision_ids.append(neuron.idx)
+
+     # Near
+    descent_near_ids = []
+    for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
+        descent_near_ids.append(n.idx)
+
+    ascent_near_ids = []
+    for neuron in ascent_near_layer:
+        ascent_near_ids.append(neuron.idx)
+
+    # Far
+    descent_far_ids = []
+    for neuron in descent_far_layer:
+        descent_far_ids.append(neuron.idx)
+
+    ascent_far_ids = []
+    for neuron in ascent_far_layer:
+        ascent_far_ids.append(neuron.idx)
+
+    # Size (grow/shrink)
+    grow_ids = []
+    for neuron in grow_layer:
+        grow_ids.append(neuron.idx)
+
+    shrink_far_ids = []
+    for neuron in shrink_layer:
+        shrink_far_ids.append(neuron.idx)
+
+    # Memory inputs:
+    vanish_ids = []
+    for neuron in vanished_layer:
+        vanish_ids.append(neuron.idx)
+
+    # Outputs
+    landing_ids = []
+    for neuron in landing_layer:
+        landing_ids.append(neuron.idx)
+
+    takeoff_ids = []
+    for neuron in takeoff_layer:
+        takeoff_ids.append(neuron.idx)
+
+    touch_go_ids = []
+    for neuron in touch_go_layer:
+        touch_go_ids.append(neuron.idx)
+
+    traffic_torwards_ids = []
+    for neuron in traffic_torwards_layer:
+        traffic_torwards_ids.append(neuron.idx)
+
+    traffic_away_ids = []
+    for neuron in traffic_away_layer:
+        traffic_away_ids.append(neuron.idx)
+
 
     return SimpleNamespace(
         snn=snn,
@@ -423,5 +478,9 @@ def build_network():
         feature_synapses=feature_synapses,
         # ids
         takeoff_decision_ids=takeoff_decision_ids, landing_decision_ids=landing_decision_ids,
-        touch_go_decision_ids=touch_go_decision_ids,
+        touch_go_decision_ids=touch_go_decision_ids, descent_near_ids=descent_near_ids, 
+        ascent_near_ids=ascent_near_ids, descent_far_ids=descent_far_ids, ascent_far_ids=ascent_far_ids,
+        grow_ids=grow_ids, shrink_far_ids=shrink_far_ids, vanish_ids=vanish_ids,
+        landing_ids=landing_ids, takeoff_ids=takeoff_ids, touch_go_ids=touch_go_ids,
+        traffic_torwards_ids=traffic_torwards_ids, traffic_away_ids=traffic_away_ids,
     )
