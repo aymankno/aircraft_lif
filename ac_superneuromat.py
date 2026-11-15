@@ -22,9 +22,9 @@ video10 = "/Users/aymanaghel/Desktop/LIF/2026_10_08 muted/10muted.mp4"
 video9_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video9_labels.csv"
 video10_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video10_labels.csv"
 
-far_return_min_area = 20                                                    # far-box blob must be this big to count as the vanished plane returning
-vanish_dead_sec = 8                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
-plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
+far_return_min_area = 20
+vanish_dead_sec = 8
+plane_gone_sec = 15
 
 print("'y' to enable, any other key to disable")
 troubleshoot = input("diagnositc? ")
@@ -37,13 +37,12 @@ start_time = time.time()
 def get_time():
     return f"{time.time() - start_time:.3f}sec"
 
-# dy bands (moved out of run_model): the min is each thermometer's lowest threshold, the max is a veto neuron
-min_near_delta = 1.0             # |dy| floor, away and torwards (was min_near_delta_away / min_near_delta_torwards)
+min_near_delta = 1.0
 max_near_delta_away = 6.0
 max_near_delta_torwards = 6.9
-min_far_delta = 0.25             # |far dy| floor, away and torwards
+min_far_delta = 0.25
 max_far_delta = 1.5
-far_dy_scale = 4.0               # far |dy| (0.25-1.5, moves in 0.5 px steps) -> near's 1-6 range, so far motion fires the thermometer layers
+far_dy_scale = 4.0
 
 FPS = 30000 / 1001               # footage is 29.97 fps; every timer below counts frames
 SEEN_N = int(2 * FPS) + 1        # was: n_seen > min_frames_plane_seen (2 s)
@@ -53,11 +52,10 @@ EPS = 1e-6                       # dy sits on a 0.5 px grid; keeps the old stric
 def frames(sec):
     return int(sec * FPS)
 
-### Building blocks: each one replaces a kind of python if / counter / boolean
 def gate(threshold, **kw):       # leak=inf: forgets every step, fires if this step's input > threshold
     return snn.create_neuron(threshold=threshold, **kw)
 
-def latch():                     # boolean: self-loop holds it on, a -10 turns it off
+def latch():                     # boolean: self-loop holds it on, a -10 turns off
     n = snn.create_neuron(threshold=0.5)
     snn.create_synapse(n, n, weight=1.0)
     return n
