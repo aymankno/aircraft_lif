@@ -2,6 +2,7 @@
 from superneuromat import SNN
 import cv2
 import numpy as np
+import time
 
 rng = np.random.default_rng(0)
 
@@ -24,6 +25,17 @@ video10_labels = "/Users/aymanaghel/Desktop/LIF/aircraft_lif/video10_labels.csv"
 far_return_min_area = 20                                                    # far-box blob must be this big to count as the vanished plane returning
 vanish_dead_sec = 8                                                        # first seconds of the vanish timer: a plane showing up now is a different aircraft
 plane_gone_sec = 15                                                         # confirmed missing this long = the plane has left (longer than in-event tracking gaps, < vanish_dead_sec)
+
+print("'y' to enable, any other key to disable")
+troubleshoot = input("diagnositc? ")
+if troubleshoot == 'y':
+    troubleshoot = True
+else:
+    troubleshoot = False
+
+start_time = time.time()
+def get_time():
+    return f"{time.time() - start_time:.3f}sec"
 
 # dy bands (moved out of run_model): the min is each thermometer's lowest threshold, the max is a veto neuron
 min_near_delta = 1.0             # |dy| floor, away and torwards (was min_near_delta_away / min_near_delta_torwards)
@@ -136,10 +148,11 @@ connect([near_missing, was_descending], vanish_trigger)
 set_reset(was_descending, descent_and_seen, vanish_trigger)
 
 # far-box mirror for torwards traffic: descend in far, disappear from far -> same vanish timer. For reverse traffic
-far_descent_count = counter(5)
+far_descent_count = snn.create_neuron(threshold=5, leak=0.1)
 far_recent_descent = latch()
 far_recent_timer = counter(frames(10))
 snn.create_synapse(descent_far_layer[0], far_descent_count, weight=1.0)
+snn.create_synapse(ascent_far_layer[0], far_descent_count, weight=-1.0)
 set_reset(far_recent_descent, far_descent_count, far_recent_timer)
 snn.create_synapse(far_recent_descent, far_recent_timer, weight=1.0)
 snn.create_synapse(descent_far_layer[0], far_recent_timer, weight=-1.0)
@@ -170,8 +183,18 @@ far_big = gate(far_return_min_area - 0.5)
 far_sized_count, far_sized = counter(SEEN_N), latch()
 snn.create_synapse(far_big, far_sized_count, weight=1.0)
 set_reset(far_sized, far_sized_count, far_missing_count)
-near_return, far_return = gate(1.5), gate(1.5)
-connect([edge(near_seen), window_open], near_return)
+near_back_trig = gate(1.5)
+connect([edge(near_seen), window_open], near_back_trig)
+near_back = latch()
+set_reset(near_back, near_back_trig, near_missing_count)
+near_still = gate(1.5)
+connect([near_back, near_seen], near_still)
+stay_acc = snn.create_neuron(threshold=84, leak=0.3)
+snn.create_synapse(near_still, stay_acc, weight=1.0)
+near_stayed = latch()
+set_reset(near_stayed, stay_acc, near_missing_count)
+near_return = edge(near_stayed)
+far_return = gate(1.5)
 connect([edge(far_sized), window_open], far_return)
 for r in (near_return, far_return):
     for cell in vanished_layer:
@@ -186,7 +209,7 @@ far_gone_layer = [one_shot(far_missing, far_present_count, frames(plane_gone_sec
 returned_near, returned_far, returned_timer = latch(), latch(), counter(frames(75))
 set_reset(returned_near, near_return, near_gone_layer[0])
 set_reset(returned_far, far_return, far_gone_layer[0])
-for r in (returned_near, returned_far):
+for r in (returned_near, returned_far): 
     snn.create_synapse(r, returned_timer, weight=1.0)
     snn.create_synapse(returned_timer, r, weight=-10.0)
 returned_layer = [gate(0.5)]                                                # on while a vanished plane is back (came back after the dead zone)
@@ -239,14 +262,14 @@ event_decisions = [(landing_layer, landing_accumulator, landing_decision, landin
                    (takeoff_layer, takeoff_accumulator, takeoff_decision, takeoff_gate, plane_gone_layer),
                    (touch_go_layer, touch_go_accumulator, touch_go_decision, touch_go_gate, plane_gone_layer)]
 
-for layer, acc, decision, gate, gone in event_decisions:
+for layer, acc, decision, lock, gone in event_decisions:
     for pre in layer:
         snn.create_synapse(pre, acc[0], weight=0.1, stdp_enabled=False)        # one full 10-neuron burst = 1.0
     snn.create_synapse(acc[0], decision[0], weight=1.0, stdp_enabled=False)
-    snn.create_synapse(decision[0], gate[0], weight=1.0, stdp_enabled=False)    # deciding locks the gate
-    snn.create_synapse(gate[0], gate[0], weight=1.0, stdp_enabled=False)        # self-loop holds it
-    snn.create_synapse(gate[0], decision[0], weight=-2.0, stdp_enabled=False)   # locked gate blocks the decision
-    snn.create_synapse(gone[0], gate[0], weight=-5.0, stdp_enabled=False)           # plane left? unlock
+    snn.create_synapse(decision[0], lock[0], weight=1.0, stdp_enabled=False)    # deciding locks the gate
+    snn.create_synapse(lock[0], lock[0], weight=1.0, stdp_enabled=False)        # self-loop holds it
+    snn.create_synapse(lock[0], decision[0], weight=-2.0, stdp_enabled=False)   # locked gate blocks the decision
+    snn.create_synapse(gone[0], lock[0], weight=-5.0, stdp_enabled=False)           # plane left? unlock
     snn.create_synapse(gone[0], acc[0], weight=-0.5 * acc[0].threshold, stdp_enabled=False)  # clear leftover evidence
 
 output_decisions = [(traffic_away_layer, traffic_away_decision),
@@ -295,7 +318,7 @@ near_takeoff_feat = snn.create_neuron(threshold=0.5)
 snn.create_synapse(ascent_near_layer[0], near_takeoff_feat, weight=1.0, delay=5, stdp_enabled=False)   # delay 5 = returned settles first
 for pre in returned_layer:
     snn.create_synapse(pre, near_takeoff_feat, weight=-2.0, stdp_enabled=False)                        # climbing after a return = touch/go
-near_climb_accumulator = counter(near_climb_frames)
+near_climb_accumulator = snn.create_neuron(threshold=20, leak=0.1)
 snn.create_synapse(near_takeoff_feat, near_climb_accumulator, weight=1.0, stdp_enabled=False)
 snn.create_synapse(near_climb_accumulator, takeoff_decision[0], weight=1.0, stdp_enabled=False)          # takeoff_gate still blocks repeats
 
@@ -342,9 +365,12 @@ def get_slope(y_old, y_new):
     delta_y = y_old - y_new
     return delta_y
 
-### TRAINING BELOW
+total_neurons = len(snn.neuron_thresholds)
+total_synapses = len(snn.synapses)
 print()
-print("TRAINING:")
+### TRAINING BELOW
+print(f"{total_neurons} neurons initialized, {total_synapses} synapses")
+print(f"Training starting . . . {get_time()}")
 
 defined_outputs = {"takeoff": takeoff_layer,
                    "landing": landing_layer,
@@ -578,16 +604,14 @@ ascent_takeoff_before = W[np.ix_(ascent_far_ids[:11], takeoff_ids)].mean()
 
 vanish_landing_before = W[np.ix_(vanish_ids, landing_ids)].mean()
 
-
 snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spike
+print(f"Forward training complete . . . {get_time()}")
 
-for syn in feature_synapses:                     # training done: switch the feature neurons on for testing
-    syn.weight = feature_weight
-
-print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
-print("Takeoff teacher:", teacher_count["takeoff"] * 10, "actual:", snn.ispikes[:, takeoff_ids].sum())
-print("Landing teachers", teacher_count["landing"] * 10, "actual:", snn.ispikes [:, landing_ids].sum())
-print("Touch/go teacher:", teacher_count["touch/go"] * 10, "actual:", snn.ispikes[:, touch_go_ids].sum())
+if troubleshoot == True:
+    print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
+    print("Takeoff teacher:", teacher_count["takeoff"] * 10, "actual:", snn.ispikes[:, takeoff_ids].sum())
+    print("Landing teachers", teacher_count["landing"] * 10, "actual:", snn.ispikes [:, landing_ids].sum())
+    print("Touch/go teacher:", teacher_count["touch/go"] * 10, "actual:", snn.ispikes[:, touch_go_ids].sum())
 
 W = snn.weight_mat() # saves the NEW weights after training from training spikes
 
@@ -599,30 +623,30 @@ ascent_takeoff_after = W[np.ix_(ascent_far_ids[:11], takeoff_ids)].mean()
 
 vanish_landing_after = W[np.ix_(vanish_ids, landing_ids)].mean()
 
+if troubleshoot == True:
+    print()
+    print("BEFORE:")
+    print("Descent-landing:", descent_landing_before)
+    print("Descent-takeoff:", descent_takeoff_before)
+    print("Ascent-landing:", ascent_landing_before)
+    print("Ascent-takeoff:", ascent_takeoff_before)
+    print("Vanish-landing:", vanish_landing_before)
 
+    print()
 
-print()
-print("BEFORE:")
-print("Descent-landing:", descent_landing_before)
-print("Descent-takeoff:", descent_takeoff_before)
-print("Ascent-landing:", ascent_landing_before)
-print("Ascent-takeoff:", ascent_takeoff_before)
-print("Vanish-landing:", vanish_landing_before)
+    print("AFTER:")
+    print("Descent-landing:", descent_landing_after, "percent change:", ((descent_landing_after - descent_landing_before) / descent_landing_before) * 100)
+    print("Descent-takeoff:", descent_takeoff_after, "percent change:", ((descent_takeoff_after - descent_takeoff_before) / descent_takeoff_before) * 100)
+    print("Ascent-landing:", ascent_landing_after, "percent change:", ((ascent_landing_after - ascent_landing_before) / ascent_landing_before) * 100)
+    print("Ascent-takeoff:", ascent_takeoff_after, "percent change:", ((ascent_takeoff_after - ascent_takeoff_before) / ascent_takeoff_before) * 100)
+    print("Vanish-landing:", vanish_landing_after, "percent change:", (vanish_landing_after - vanish_landing_before) / vanish_landing_before * 100)
+    print()
 
-print()
-
-
-print("AFTER:")
-print("Descent-landing:", descent_landing_after, "percent change:", ((descent_landing_after - descent_landing_before) / descent_landing_before) * 100)
-print("Descent-takeoff:", descent_takeoff_after, "percent change:", ((descent_takeoff_after - descent_takeoff_before) / descent_takeoff_before) * 100)
-print("Ascent-landing:", ascent_landing_after, "percent change:", ((ascent_landing_after - ascent_landing_before) / ascent_landing_before) * 100)
-print("Ascent-takeoff:", ascent_takeoff_after, "percent change:", ((ascent_takeoff_after - ascent_takeoff_before) / ascent_takeoff_before) * 100)
-print("Vanish-landing:", vanish_landing_after, "percent change:", (vanish_landing_after - vanish_landing_before) / vanish_landing_before * 100)
-print()
-
+for syn in feature_synapses:            # feature neurons ON for test below 
+    syn.weight = feature_weight
 
 ### VIDEO TESTING
-print("VIDEO TESTING BELOW:")
+print(f"Video testing . . . {get_time()}")
 snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False) # turn off stdp training; now in testing
 snn.reset()                                                              # to clear spike history for accurate spike counts.
 
@@ -649,17 +673,15 @@ def test_video(video, video_label, diagnostic_enabled, reversed):
     frame_num = run_model(video, reverse_video=reversed)
     snn.simulate(time_steps=frame_num)
     rows = snn.ispikes[0 : frame_num]
-    print("frames:", frame_num, " blob_detected:", rows[:, blob_detected_layer[0].idx].sum(),
-      " descent_near:", rows[:, descent_near_layer[0].idx].sum(), " ascent_near:", rows[:, ascent_near_layer[0].idx].sum(),
-      " descent_far:", rows[:, descent_far_layer[0].idx].sum(), "  ascent_far:", rows[:, ascent_far_layer[0].idx].sum())
 
     landings    = rows[:, landing_decision[0].idx].sum()
     takeoffs    = rows[:, takeoff_decision[0].idx].sum()
     touch_gos   = rows[:, touch_go_decision[0].idx].sum()
-
+    print("frames:", frame_num, " blob_detected:", rows[:, blob_detected_layer[0].idx].sum(),
+      " descent_near:", rows[:, descent_near_layer[0].idx].sum(), " ascent_near:", rows[:, ascent_near_layer[0].idx].sum(),
+      " descent_far:", rows[:, descent_far_layer[0].idx].sum(), "  ascent_far:", rows[:, ascent_far_layer[0].idx].sum())
     print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
     print("Operations:", landings + takeoffs + 2 * touch_gos) # In official reporting, touch/go counts as 2 movements
-    print()
 
     if diagnostic_enabled == True:
         measure = {
@@ -704,14 +726,20 @@ def test_video(video, video_label, diagnostic_enabled, reversed):
                 v = np.array(vals)
                 print(f"  {layer:9} min {v.min()}  median {np.median(v)}  max {v.max()}  mean {v.mean():.2f}")
 
-print("VIDEO10 test fwd:")
-test_video(video10, video10_labels, diagnostic_enabled=False, reversed=False)
+print(f"VIDEO10 test fwd . . . {get_time()}:")
+test_video(video10, video10_labels, diagnostic_enabled=troubleshoot, reversed=False)
+print(f"VIDEO10 finished . . . {get_time()}")
 
 unlabeled_videos = [video1, video2, video3, video4, video5, video6, video7, video8]
 
-print("Unlabeled tests (reversed)")
+print(f"Unlabeled tests (reversed) at {get_time()}")
 idx = 0
 for video in unlabeled_videos:
     print(f"Video {idx+1}")
-    test_video(video, None, diagnostic_enabled=False, reversed=True)
+    test_video(video, None, diagnostic_enabled=troubleshoot, reversed=True)
     idx += 1
+
+elapsed = time.time() - start_time
+full_time_mins = int(elapsed // 60)
+full_time_secs = int(elapsed % 60)
+print(f"FULL RUN COMPLETE . . . {get_time()}; {full_time_mins}:{full_time_secs:02d}")
