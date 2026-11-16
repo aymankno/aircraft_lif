@@ -223,8 +223,20 @@ snn.create_synapse(near_still, stay_acc, weight=1.0)
 near_stayed = latch()
 set_reset(near_stayed, stay_acc, near_missing_count)
 near_return = edge(near_stayed)
-far_return = gate(1.5)
-connect([edge(far_sized), window_open], far_return)
+# far return has to climb (was: back in the window = return, so a plane taxiing back in cancelled its own landing)
+far_climb_n = 8             # net far-ascent frames (descents subtract) -> ~1 s of climb; tune on video 9 touch/gos
+far_ascent_count = snn.create_neuron(threshold=far_climb_n, leak=0.2)      # mirror of far_descent_count, leak drains taxi jitter
+snn.create_synapse(ascent_far_layer[0], far_ascent_count, weight=1.0)
+snn.create_synapse(descent_far_layer[0], far_ascent_count, weight=-1.0)
+far_rising = latch()
+set_reset(far_rising, far_ascent_count, far_missing_count)
+far_back_trig = gate(1.5)
+connect([edge(far_sized), window_open], far_back_trig)                     # was: far_return
+far_back = latch()
+set_reset(far_back, far_back_trig, far_missing_count)
+far_climb = gate(1.5)
+connect([far_back, far_rising], far_climb)
+far_return = edge(far_climb)
 for r in (near_return, far_return):
     for cell in vanished_layer:
         snn.create_synapse(r, cell, weight=-10.0)                          # was: frames_since_vanish = None
@@ -383,6 +395,46 @@ snn.create_synapse(landing_clear, landing_accumulator[0], weight=-0.5 * landing_
 NEAR_BOX = (468, 1, 967, 747)
 FAR_BOX  = (974, 604, 265, 151)
 
+# TILE NEURONS + 'BLIND":
+TILE_COLS, TILE_ROWS = 16, 9      # 120 px tiles at 1080p, also the grid for dynamic zones SOON
+tile_lit_frac = 0.10              # tile is lit when > 10% foreground
+flood_tiles = 45                  # lit tiles to call a flood
+calm_tiles = 4                    # under this many lit = calm
+flood_frames = 3                  # flood frames to turn blind on
+calm_frames = 15                  # calm frames to turn it off, no timeout so it waits out MOG2
+
+always_on = latch()                                                         # on from t=0 (run_model)
+tile_layer = [gate(tile_lit_frac) for i in range(TILE_COLS * TILE_ROWS)]    # 144 neurons, one per tile
+flood, busy = gate(flood_tiles - 0.5), gate(calm_tiles - 0.5)
+connect(tile_layer, flood)
+connect(tile_layer, busy)
+flood_count, calm_count = counter(flood_frames), counter(calm_frames)
+snn.create_synapse(flood, flood_count, weight=1.0)
+calm = gate(0.5)                                                            # always_on AND NOT busy
+snn.create_synapse(always_on, calm, weight=1.0)
+snn.create_synapse(busy, calm, weight=-1.0)
+snn.create_synapse(calm, calm_count, weight=1.0)
+blind = latch()
+set_reset(blind, flood_count, calm_count)
+
+def presence_inputs(present_count, missing_count):   # encoder -> gate -> counter so blind can block it (INH on a leaky counter never wears off)
+    blob_in, noblob_in = gate(0.5), gate(0.5)
+    snn.create_synapse(blob_in, present_count, weight=1.0)
+    snn.create_synapse(noblob_in, missing_count, weight=1.0)
+    snn.create_synapse(blind, blob_in, weight=INH)
+    snn.create_synapse(blind, noblob_in, weight=INH)
+    return blob_in, noblob_in
+
+plane_blob_in, plane_noblob_in = presence_inputs(plane_present_count, plane_missing_count)
+near_blob_in, near_noblob_in = presence_inputs(near_present_count, near_missing_count)
+far_blob_in, far_noblob_in = presence_inputs(far_present_count, far_missing_count)
+
+blind_blocks = [n for layer in thermometers.values() for n in layer] + grow_layer + shrink_layer + down_steps + up_steps + [far_big]
+for n in blind_blocks:
+    snn.create_synapse(blind, n, weight=INH)                                # no dy / size evidence while blind
+
+### EVERYTHING ABOVE (besides prints) in ac_init, BELOW ac_train
+
 def track(mask, box, min_area, max_area):
     x, y, w, h = box
     crop = mask[y:y+h, x:x+w]
@@ -460,6 +512,8 @@ def run_forward(video):
             return
         yield frame
 
+encoder_stats = {"peak_lit_tiles": 0}     # print only, never goes back into the SNN
+
 def run_model(video, reverse_video):
     source = run_reverse(video) if reverse_video else run_forward(video)
     backSub = cv2.createBackgroundSubtractorMOG2()
@@ -483,6 +537,8 @@ def run_model(video, reverse_video):
     frame_idx = 0
 
     snn.add_spike(0, plane_absent, 1.0)                                    # plane_absent starts on, so plane_seen starts off
+    snn.add_spike(0, always_on, 1.0)
+    encoder_stats["peak_lit_tiles"] = 0
 
     for frame in source:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -492,15 +548,25 @@ def run_model(video, reverse_video):
         near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
         far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
 
-        # presence: raw "blob this frame" facts in, the presence() circuits do the debouncing
+        # tiles: raw foreground fraction per tile, blind is decided in neurons
+        fg = mask > 0
+        th, tw = fg.shape[0] // TILE_ROWS, fg.shape[1] // TILE_COLS
+        tile_frac = fg[:th * TILE_ROWS, :tw * TILE_COLS].reshape(TILE_ROWS, th, TILE_COLS, tw).mean(axis=(1, 3)).ravel()
+        for n, frac in zip(tile_layer, tile_frac):
+            if frac > tile_lit_frac:                                        # under threshold can't fire it, skip to save memory
+                snn.add_spike(frame_idx, n, float(frac))
+        if frame_idx >= round(FPS):                                         # skip MOG2 warm-up (whole frame is foreground)
+            encoder_stats["peak_lit_tiles"] = max(encoder_stats["peak_lit_tiles"], int((tile_frac > tile_lit_frac).sum()))
+
+        # presence: raw "blob this frame" facts in (through the blind gates), the presence() circuits do the debouncing
         is_blob = float(near_y is not None or far_y is not None)
-        snn.add_spike(frame_idx, plane_present_count, is_blob)
-        snn.add_spike(frame_idx, plane_missing_count, 1.0 - is_blob)
-        for present_count, missing_count, y in ((near_present_count, near_missing_count, near_y),
-                                                (far_present_count, far_missing_count, far_y)):
+        snn.add_spike(frame_idx, plane_blob_in, is_blob)
+        snn.add_spike(frame_idx, plane_noblob_in, 1.0 - is_blob)
+        for blob_in, noblob_in, y in ((near_blob_in, near_noblob_in, near_y),
+                                      (far_blob_in, far_noblob_in, far_y)):
             present = float(y is not None)
-            snn.add_spike(frame_idx, present_count, present)
-            snn.add_spike(frame_idx, missing_count, 1.0 - present)
+            snn.add_spike(frame_idx, blob_in, present)
+            snn.add_spike(frame_idx, noblob_in, 1.0 - present)
         if far_y is not None:
             snn.add_spike(frame_idx, far_big, far_area)
 
@@ -628,7 +694,7 @@ touch_go_decision_ids = []
 for neuron in touch_go_decision:
     touch_go_decision_ids.append(neuron.idx)
 
-away_decision_ids = []
+away_decision_ids = []                              # AWAY/GROW not in ac_init
 for neuron in traffic_away_decision:
     away_decision_ids.append(neuron.idx)
 
@@ -650,6 +716,7 @@ snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher s
 print(f"Forward training complete . . . {get_time()}")
 
 if troubleshoot == True:
+    print("BLIND frames:", snn.ispikes[:, blind.idx].sum(), " peak lit tiles:", encoder_stats["peak_lit_tiles"])
     print("Vanish spikes:", snn.ispikes[:, vanish_ids].sum())
     print("Takeoff teacher:", teacher_count["takeoff"] * 10, "actual:", snn.ispikes[:, takeoff_ids].sum())
     print("Landing teachers", teacher_count["landing"] * 10, "actual:", snn.ispikes [:, landing_ids].sum())
@@ -722,6 +789,8 @@ def test_video(video, video_label, diagnostic_enabled, reversed):
     print("frames:", frame_num, " blob_detected:", rows[:, blob_detected_layer[0].idx].sum(),
       " descent_near:", rows[:, descent_near_layer[0].idx].sum(), " ascent_near:", rows[:, ascent_near_layer[0].idx].sum(),
       " descent_far:", rows[:, descent_far_layer[0].idx].sum(), "  ascent_far:", rows[:, ascent_far_layer[0].idx].sum())
+    print("BLIND frames:", rows[:, blind.idx].sum(), " peak lit tiles:", encoder_stats["peak_lit_tiles"],
+          f"(flood at {flood_tiles})")                                     # should be ~0 on video with no camera bumps
     print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
     print("Operations:", landings + takeoffs + 2 * touch_gos) # In official reporting, touch/go counts as 2 movements
 
