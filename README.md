@@ -8,9 +8,8 @@ video1-10 - [YouTube Link](https://www.youtube.com/playlist?list=PLKrqNoJmfkQE)
 
 Neuromorphic-inspired network to count and classify takeoffs, landings, and touch-and-goes at untowered airports from video. Aims to achieve high accuracy when counting & classifying aircraft movements at airports for grant applications to improve safety and maintainence. Initially a manually coded custom system of five leaky integrate-and-fire (LIF) neurons coded with NumPy and OpenCV with a heavy dependency on if statements, currently an SNN coded with the SuperNeuroMAT simulator in Python.
 
-Latest changes (11/15) - Reversed and forward traffic 15/15 each, pushed all changes to ac_live, train, and init
-Fixes for reversed traffic including raising fundamental blocks and adding logic for enhanced accuracy, including a fix to prevent returned from being charged just by aircraft being seen, changed to be charged only if dy over 15 frames is above certain thresh. Pushed all changes to ac_live, train, and init, including changes in ac_live in interface including a line on-screen to show y of blobs detected, allows for better troubleshooting. Planning to create dynamic zones based on a tile system in next changelog.
-
+Latest changes (11/16) - 2 seperate tile systems allow for safety + zoning dynamics
+Tiles on the network allow for insane results! First, created a tile system 'BLIND' in which model shuts down input layers if too many changes are happening at once. (total; if # of tiles with >10% change is > 45). Then, another tile system 'checkpoint system' where centroid flies through + spikes tiles. Model learns when the last tile was before vanish and uses that as the far_zone, everything else near_zone. Not yet wired, but excellent results in testing. Awaiting feedback, planning follow up to SuperNeuroMAT key contributor on aircraft classification feedback.
 
 ## License
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, educational, and research use. Commercial use requires permission. Contact: aymanaghel@gmail.com
@@ -186,6 +185,13 @@ Added numerous fixes for reversing traffic over past few days. First, I fixed a 
 Notes: Grow/shrink continue to stay, likely going to be used for dynamic zones (changing the current fixed boxes for near and far). Next changed should be those zones unless recieve information on aircraft classifcation (LARGEST PRIORITY) from prof. 
 
 Future changes: Dynamic zones with neurons due to potential camera shifting, remove more Python if statements (not the troubleshoot at start of ac_superneuromat), aircraft classifcation feedback (#1 PRIORITY!!!). 
+
+### Full blob-tile neuron system for future dynamic zones, 'blind' safety feature - 11/16/2026
+Created a blob-tile neuron system, in which preset sliced portions of the screen are set as tiles that aircraft centroids can fly over. When an aircraft flies over one before vanishing, that tile gets a +1.0. Although, currently does not leak, which likely will be changed in future. When it reaches 2.0 (2 hits) it is added to the near_box (and subtracted from far_box) zone. In testing, great results in which the model would get almost every event marking the same tile, and one two tiles away on the same y. These are great results, although some general changes will be needed, likely including a small leak. Additionally, for potential differed camera placement, roll neurons are included in the tile system in case the camera can see the runway. If the camera can see the runway, unlike the current model, the aircraft will not disappear. Roll allows for the model to realize that the plane is not really moving up or down and instead is moving across x axis; side to side. Although, I am unable to test it since current footage can not see runway EXCEPT when reversed footage shows planes 'leaving' the runway (lining up for takeoff in fwd). Also, added a 'BLIND' safety feature in which the entire model also has a tile system, but not in a type of checkpoint system as the centroid/blob tiles do. Instead, these tiles are charged by changes to their portion and spiked when more than a 10% change occurs. When 45 tiles (likely going to change to be percentage for potential different camera size) are spiked, the model goes into a FLOOD and becomes blind, shutting down input layers but leaving all other layers on, including crucial counters! Also includes calm buffer. 
+
+Notes: Not wired yet but double check if can change the python logic for counters in blob tiles to neurons; perhaps a custom neuron with loose architecture as a counter? Create preview as film (with similar preview as ac_live) to allow live zone viewing.. check how fast / if any complications when resetting zone to be completely new size.
+
+Future changes: Awaiting message back for aircraft classification, planning follow up? Wire dynamic zones, test, loop. Engineering design! Get more events; 15/15 beginning to feel less and less reputable, although no genuine evidence. Need better/more ground truth.
 
 ## Acknowledgements:
 
