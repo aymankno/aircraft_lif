@@ -40,7 +40,9 @@ def get_time():
         elapsed_time = f"{time.time() - start_time:.3f}secs"
     else:
         time_mins = int(secs // 60)
-        time_secs = int(secs % 60)  
+        time_secs = int(secs % 60)
+        if time_secs < 10:
+            time_secs = f"0{time_secs}"  
         elapsed_time = f"{time_mins}:{time_secs}"
     return elapsed_time
 
@@ -400,17 +402,17 @@ def track(mask, box, min_area, max_area):
     crop = mask[y:y+h, x:x+w]
     num_labels, _, stats, _ = cv2.connectedComponentsWithStats(crop)
     if num_labels <= 1:
-        return None, None
+        return None, None, None
     best_i = np.argmax(stats[1:, cv2.CC_STAT_AREA]) + 1
     area = stats[best_i, cv2.CC_STAT_AREA]
     if not (min_area <= area <= max_area):
-        return None, None
+        return None, None, None
     top = stats[best_i, cv2.CC_STAT_TOP]
     height = stats[best_i, cv2.CC_STAT_HEIGHT]
     left = stats[best_i, cv2.CC_STAT_LEFT]
     width = stats[best_i, cv2.CC_STAT_WIDTH]
 
-    return top + height / 2, area, left + width / 2
+    return y + top + height / 2, area, x + left + width / 2
 
 # TILE NEURONS + 'BLIND":
 TILE_COLS, TILE_ROWS = 16, 9      # 120 px tiles at 1080p, also the grid for dynamic zones SOON
@@ -434,11 +436,6 @@ snn.create_synapse(calm, calm_count, weight=1.0)
 blind = latch()
 set_reset(blind, flood_count, calm_count)
 
-blob_tiles = [latch(0.5) for i in range(TILE_COLS * TILE_ROWS)]      # blob tiles, just one tile representing location of blobs centroid. for dynamic zones
-any_blob = gate(0.5)
-for neuron in blob_tiles:
-    snn.create_synapse(any_blob, blob_tiles, weight=-10.0)          # if a blob, make EVERYTHING false except the tile the blob's centroid is in (which gets +11 weight)
-
 def presence_inputs(present_count, missing_count):   # encoder -> gate -> counter so blind can block it (INH on a leaky counter never wears off)
     blob_in, noblob_in = gate(0.5), gate(0.5)
     snn.create_synapse(blob_in, present_count, weight=1.0)
@@ -447,7 +444,53 @@ def presence_inputs(present_count, missing_count):   # encoder -> gate -> counte
     snn.create_synapse(blind, noblob_in, weight=INH)
     return blob_in, noblob_in
 
+blob_tiles = [latch() for i in range(TILE_COLS * TILE_ROWS)]      # blob tiles, just one tile representing location of blobs centroid. for dynamic zones
+any_blob = gate(0.5)
+for neuron in blob_tiles:
+    snn.create_synapse(any_blob, neuron, weight=-10.0)          # if a blob, make EVERYTHING false except the tile the blob's centroid is in (which gets +11 weight)
+raw_present_count, raw_missing_count, raw_seen, raw_missing = presence()
+raw_blob_in, raw_noblob_in = presence_inputs(raw_present_count, raw_missing_count)
+recent_any = gate(0.5)
+snn.create_synapse(recent_descent, recent_any, 1.0)
+snn.create_synapse(far_recent_descent, recent_any, 1.0)
+raw_gone = edge(raw_missing)
+vanish_teach = gate(1.5)
+snn.create_synapse(raw_gone, vanish_teach, 1.0)
+snn.create_synapse(recent_any, vanish_teach, 1.0)   #
+snn.create_synapse(blind, vanish_teach, INH)
+moving_v = gate(0.5)                                                        # |raw dy| >= 1 px
+moving_x = gate(0.25)                                                       # |raw dx| >= 0.5 px (x sits on a 0.5 px grid)
+roll_frame = gate(0.5)
+snn.create_synapse(blind, roll_frame, INH)
+snn.create_synapse(moving_x, roll_frame, 1.0)
+snn.create_synapse(moving_v, roll_frame, -1.0)
+roll_count = counter(30)
+snn.create_synapse(roll_frame, roll_count, 1.0)
+roll_teach = gate(1.5)
+snn.create_synapse(roll_count, roll_teach, 1.0)
+snn.create_synapse(recent_any, roll_teach, 1.0)
+snn.create_synapse(blind, roll_teach, INH)
+teach_any = gate(0.5)
+snn.create_synapse(vanish_teach, teach_any, 1.0)
 
+interior = [k for k in range(TILE_COLS * TILE_ROWS)
+            if 0 < k // TILE_COLS < TILE_ROWS - 1 and 0 < k % TILE_COLS < TILE_COLS - 1]   # 98 tiles, no frame edges
+hit    = {k: gate(1.5) for k in interior}
+hit_count = {k: snn.create_neuron(threshold=1.5, leak=0) for k in interior}
+member = {k: latch() for k in interior}
+for k in interior:
+    snn.create_synapse(blob_tiles[k], hit[k], weight=1.0)
+    snn.create_synapse(teach_any, hit[k], weight=1.0)
+    snn.create_synapse(hit[k], member[k], weight=1.0)       # add rest soon
+    snn.create_synapse(hit_count[k], member[k], weight=1.0)
+
+seed_far_box = False              # False = learn from nothing (test), True = start from FAR_BOX tiles
+far_box_tiles = [k for k in interior if 8 <= k % TILE_COLS <= 10 and 5 <= k // TILE_COLS <= 6]   # tiles FAR_BOX covers (974-1239 x, 604-755 y)
+
+def neighbors(k):
+    row, col = k // TILE_COLS, k % TILE_COLS
+    return [r * TILE_COLS + c for r in (row - 1, row, row + 1) for c in (col - 1, col, col + 1)
+            if 0 <= r < TILE_ROWS and 0 <= c < TILE_COLS]
 
 plane_blob_in, plane_noblob_in = presence_inputs(plane_present_count, plane_missing_count)
 near_blob_in, near_noblob_in = presence_inputs(near_present_count, near_missing_count)
@@ -541,12 +584,17 @@ def run_model(video, reverse_video):
 
     near_y_old = None
     far_y_old = None
+    raw_y_old = None
+    raw_x_old = None
     old_near_area = None
     old_far_area = None
     frame_idx = 0
 
     snn.add_spike(0, plane_absent, 1.0)                                    # plane_absent starts on, so plane_seen starts off
     snn.add_spike(0, always_on, 1.0)
+    if seed_far_box:
+        for k in far_box_tiles:
+            snn.add_spike(0, member[k], 1.0)
     encoder_stats["peak_lit_tiles"] = 0
 
     for frame in source:
@@ -556,6 +604,7 @@ def run_model(video, reverse_video):
         near_mask[604:755, 974:1239] = 0
         near_y, near_area, near_x = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
         far_y, far_area, far_x = track(mask, FAR_BOX, min_far_area, max_far_area)
+        raw_y, raw_area, raw_x = track(mask, NEAR_BOX, min_far_area, max_near_area)   # raw: no mask, any plane size, only for learning zones
 
         # tiles: raw foreground fraction per tile, blind is decided in neurons
         fg = mask > 0
@@ -567,12 +616,21 @@ def run_model(video, reverse_video):
         if frame_idx >= round(FPS):                                         # skip MOG2 warm-up (whole frame is foreground)
             encoder_stats["peak_lit_tiles"] = max(encoder_stats["peak_lit_tiles"], int((tile_frac > tile_lit_frac).sum()))
         # tiles - spiking centroid's tile
-        cx, cy = (near_x, near_y) if near_y is not None else (far_x, far_y)
+        cx, cy = raw_x, raw_y                                               # raw blob so the runway isn't hidden
         if cy is not None:
             col = int(cx // tw)         # no safeguard b/c not live, will need for other rez in ac_live
             row = int(cy // th)
             snn.add_spike(frame_idx + 1, blob_tiles[row * TILE_COLS + col], 11.0)
             snn.add_spike(frame_idx, any_blob, 1.0)
+
+        # raw presence + motion for the zone teachers
+        raw_present = float(raw_y is not None)
+        snn.add_spike(frame_idx, raw_blob_in, raw_present)
+        snn.add_spike(frame_idx, raw_noblob_in, 1.0 - raw_present)
+        if raw_y is not None and raw_y_old is not None:
+            snn.add_spike(frame_idx, moving_v, abs(raw_y - raw_y_old))
+            snn.add_spike(frame_idx, moving_x, abs(raw_x - raw_x_old))
+        raw_y_old, raw_x_old = raw_y, raw_x
 
         # presence: raw "blob this frame" facts in (through the blind gates), the presence() circuits do the debouncing
         is_blob = float(near_y is not None or far_y is not None)
@@ -730,6 +788,24 @@ vanish_landing_before = W[np.ix_(vanish_ids, landing_ids)].mean()
 
 snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spike
 print(f"Forward training complete . . . {get_time()}")
+
+# zone check: what the teachers learned on video 9 (a latch that's on spiked on the last step)
+on = snn.ispikes[-1]
+print("vanish_teach:", snn.ispikes[:, vanish_teach.idx].sum(), " frames:", np.where(snn.ispikes[:, vanish_teach.idx])[0])
+print("roll_teach:", snn.ispikes[:, roll_teach.idx].sum(), " frames:", np.where(snn.ispikes[:, roll_teach.idx])[0])
+print("\n".join("".join("#" if k in member and on[member[k].idx] else "." for k in range(r * TILE_COLS, (r + 1) * TILE_COLS))       # GRID showing what it identified 
+                for r in range(TILE_ROWS)))
+
+labels = []
+with open(video9_labels) as f:
+    next(f)
+    for row in f:
+        if row.strip():
+            s, e, area, movement, direction = [x.strip() for x in row.split(',')]
+            labels.append((int(s), int(e), movement))
+for fr in np.where(snn.ispikes[:, teach_any.idx])[0]:
+    inside = [f"{m} {s}-{e}" for s, e, m in labels if s <= fr <= e + frames(3)]
+    print(fr, inside[0] if inside else "NOT IN ANY EVENT")
 
 if troubleshoot == True:
     print("BLIND frames:", snn.ispikes[:, blind.idx].sum(), " peak lit tiles:", encoder_stats["peak_lit_tiles"])
