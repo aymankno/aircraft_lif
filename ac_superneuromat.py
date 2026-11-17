@@ -395,46 +395,6 @@ snn.create_synapse(landing_clear, landing_accumulator[0], weight=-0.5 * landing_
 NEAR_BOX = (468, 1, 967, 747)
 FAR_BOX  = (974, 604, 265, 151)
 
-# TILE NEURONS + 'BLIND":
-TILE_COLS, TILE_ROWS = 16, 9      # 120 px tiles at 1080p, also the grid for dynamic zones SOON
-tile_lit_frac = 0.10              # tile is lit when > 10% foreground
-flood_tiles = 45                  # lit tiles to call a flood
-calm_tiles = 4                    # under this many lit = calm
-flood_frames = 3                  # flood frames to turn blind on
-calm_frames = 15                  # calm frames to turn it off, no timeout so it waits out MOG2
-
-always_on = latch()                                                         # on from t=0 (run_model)
-tile_layer = [gate(tile_lit_frac) for i in range(TILE_COLS * TILE_ROWS)]    # 144 neurons, one per tile
-flood, busy = gate(flood_tiles - 0.5), gate(calm_tiles - 0.5)
-connect(tile_layer, flood)
-connect(tile_layer, busy)
-flood_count, calm_count = counter(flood_frames), counter(calm_frames)
-snn.create_synapse(flood, flood_count, weight=1.0)
-calm = gate(0.5)                                                            # always_on AND NOT busy
-snn.create_synapse(always_on, calm, weight=1.0)
-snn.create_synapse(busy, calm, weight=-1.0)
-snn.create_synapse(calm, calm_count, weight=1.0)
-blind = latch()
-set_reset(blind, flood_count, calm_count)
-
-def presence_inputs(present_count, missing_count):   # encoder -> gate -> counter so blind can block it (INH on a leaky counter never wears off)
-    blob_in, noblob_in = gate(0.5), gate(0.5)
-    snn.create_synapse(blob_in, present_count, weight=1.0)
-    snn.create_synapse(noblob_in, missing_count, weight=1.0)
-    snn.create_synapse(blind, blob_in, weight=INH)
-    snn.create_synapse(blind, noblob_in, weight=INH)
-    return blob_in, noblob_in
-
-plane_blob_in, plane_noblob_in = presence_inputs(plane_present_count, plane_missing_count)
-near_blob_in, near_noblob_in = presence_inputs(near_present_count, near_missing_count)
-far_blob_in, far_noblob_in = presence_inputs(far_present_count, far_missing_count)
-
-blind_blocks = [n for layer in thermometers.values() for n in layer] + grow_layer + shrink_layer + down_steps + up_steps + [far_big]
-for n in blind_blocks:
-    snn.create_synapse(blind, n, weight=INH)                                # no dy / size evidence while blind
-
-### EVERYTHING ABOVE (besides prints) in ac_init, BELOW ac_train
-
 def track(mask, box, min_area, max_area):
     x, y, w, h = box
     crop = mask[y:y+h, x:x+w]
@@ -447,8 +407,57 @@ def track(mask, box, min_area, max_area):
         return None, None
     top = stats[best_i, cv2.CC_STAT_TOP]
     height = stats[best_i, cv2.CC_STAT_HEIGHT]
+    left = stats[best_i, cv2.CC_STAT_LEFT]
+    width = stats[best_i, cv2.CC_STAT_WIDTH]
 
-    return top + height / 2, area
+    return top + height / 2, area, left + width / 2
+
+# TILE NEURONS + 'BLIND":
+TILE_COLS, TILE_ROWS = 16, 9      # 120 px tiles at 1080p, also the grid for dynamic zones SOON
+tile_lit_frac = 0.10              # tile is lit when > 10% foreground
+flood_tiles = 45                  # lit tiles to call a flood
+calm_tiles = 4                    # under this many lit = calm
+flood_frames = 3                  # flood frames to turn blind on
+calm_frames = 15                  # calm frames to turn it off, no timeout so it waits out MOG2
+
+always_on = latch()                                                         # on from t=0 (run_model)
+tile_layer = [gate(tile_lit_frac) for i in range(TILE_COLS * TILE_ROWS)]    # 144 neurons, one per tile, OVERFLOW TILES
+flood, busy = gate(flood_tiles - 0.5), gate(calm_tiles - 0.5)
+connect(tile_layer, flood)
+connect(tile_layer, busy)
+flood_count, calm_count = counter(flood_frames), counter(calm_frames)
+snn.create_synapse(flood, flood_count, weight=1.0)
+calm = gate(0.5)                                                            # always_on AND NOT busy
+snn.create_synapse(always_on, calm, weight=1.0)
+snn.create_synapse(busy, calm, weight=-1.0)
+snn.create_synapse(calm, calm_count, weight=1.0)
+blind = latch()
+set_reset(blind, flood_count, calm_count)
+
+blob_tiles = [latch(0.5) for i in range(TILE_COLS * TILE_ROWS)]      # blob tiles, just one tile representing location of blobs centroid. for dynamic zones
+any_blob = gate(0.5)
+for neuron in blob_tiles:
+    snn.create_synapse(any_blob, blob_tiles, weight=-10.0)          # if a blob, make EVERYTHING false except the tile the blob's centroid is in (which gets +11 weight)
+
+def presence_inputs(present_count, missing_count):   # encoder -> gate -> counter so blind can block it (INH on a leaky counter never wears off)
+    blob_in, noblob_in = gate(0.5), gate(0.5)
+    snn.create_synapse(blob_in, present_count, weight=1.0)
+    snn.create_synapse(noblob_in, missing_count, weight=1.0)
+    snn.create_synapse(blind, blob_in, weight=INH)
+    snn.create_synapse(blind, noblob_in, weight=INH)
+    return blob_in, noblob_in
+
+
+
+plane_blob_in, plane_noblob_in = presence_inputs(plane_present_count, plane_missing_count)
+near_blob_in, near_noblob_in = presence_inputs(near_present_count, near_missing_count)
+far_blob_in, far_noblob_in = presence_inputs(far_present_count, far_missing_count)
+
+blind_blocks = [n for layer in thermometers.values() for n in layer] + grow_layer + shrink_layer + down_steps + up_steps + [far_big]
+for n in blind_blocks:
+    snn.create_synapse(blind, n, weight=INH)                                # no dy / size evidence while blind
+
+### EVERYTHING ABOVE (besides prints, TRACK) in ac_init, BELOW ac_train
 
 def get_slope(y_old, y_new):
     delta_y = y_old - y_new
@@ -545,8 +554,8 @@ def run_model(video, reverse_video):
         mask = backSub.apply(gray)
         near_mask = mask.copy()
         near_mask[604:755, 974:1239] = 0
-        near_y, near_area = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
-        far_y, far_area = track(mask, FAR_BOX, min_far_area, max_far_area)
+        near_y, near_area, near_x = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
+        far_y, far_area, far_x = track(mask, FAR_BOX, min_far_area, max_far_area)
 
         # tiles: raw foreground fraction per tile, blind is decided in neurons
         fg = mask > 0
@@ -557,6 +566,13 @@ def run_model(video, reverse_video):
                 snn.add_spike(frame_idx, n, float(frac))
         if frame_idx >= round(FPS):                                         # skip MOG2 warm-up (whole frame is foreground)
             encoder_stats["peak_lit_tiles"] = max(encoder_stats["peak_lit_tiles"], int((tile_frac > tile_lit_frac).sum()))
+        # tiles - spiking centroid's tile
+        cx, cy = (near_x, near_y) if near_y is not None else (far_x, far_y)
+        if cy is not None:
+            col = int(cx // tw)         # no safeguard b/c not live, will need for other rez in ac_live
+            row = int(cy // th)
+            snn.add_spike(frame_idx + 1, blob_tiles[row * TILE_COLS + col], 11.0)
+            snn.add_spike(frame_idx, any_blob, 1.0)
 
         # presence: raw "blob this frame" facts in (through the blind gates), the presence() circuits do the debouncing
         is_blob = float(near_y is not None or far_y is not None)
