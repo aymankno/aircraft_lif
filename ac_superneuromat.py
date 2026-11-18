@@ -394,12 +394,13 @@ for cell in vanished_layer:
     snn.create_synapse(cell, landing_clear, weight=-1.0)
 snn.create_synapse(landing_clear, landing_accumulator[0], weight=-0.5 * landing_accumulator[0].threshold)
 
-NEAR_BOX = (468, 1, 967, 747)
-FAR_BOX  = (974, 604, 265, 151)
-
-def track(mask, box, min_area, max_area):
-    x, y, w, h = box
+def track(mask, zone, min_area, max_area):     # zone = (box, keep) from the zone tiles; keep zeroes pixels outside the tiles
+    if zone is None:                              # empty zone = nothing to see
+        return None, None, None
+    (x, y, w, h), keep = zone
     crop = mask[y:y+h, x:x+w]
+    if keep is not None:
+        crop = crop * keep
     num_labels, _, stats, _ = cv2.connectedComponentsWithStats(crop)
     if num_labels <= 1:
         return None, None, None
@@ -450,9 +451,22 @@ for neuron in blob_tiles:
     snn.create_synapse(any_blob, neuron, weight=-10.0)          # if a blob, make EVERYTHING false except the tile the blob's centroid is in (which gets +11 weight)
 raw_present_count, raw_missing_count, raw_seen, raw_missing = presence()
 raw_blob_in, raw_noblob_in = presence_inputs(raw_present_count, raw_missing_count)
+raw_down, raw_up, raw_jump = gate(0.25), gate(0.25), gate(6 - EPS)          # raw dy >= 0.5 px down / up; jump = blob swap, not motion
+raw_descent_count = snn.create_neuron(threshold=5, leak=0.1)                # mirror of far_descent_count (slow far descents count too)
+snn.create_synapse(raw_down, raw_descent_count, 1.0)
+snn.create_synapse(raw_up, raw_descent_count, -1.0)
+raw_recent = latch()
+raw_recent_timer = counter(frames(10))
+set_reset(raw_recent, raw_descent_count, raw_recent_timer)
+snn.create_synapse(raw_recent, raw_recent_timer, 1.0)
+snn.create_synapse(raw_down, raw_recent_timer, -1.0)                       # still descending = timer drains (same as recent_timer)
+for n in (raw_down, raw_up):
+    snn.create_synapse(raw_jump, n, INH)
+    snn.create_synapse(blind, n, INH)
 recent_any = gate(0.5)
 snn.create_synapse(recent_descent, recent_any, 1.0)
 snn.create_synapse(far_recent_descent, recent_any, 1.0)
+snn.create_synapse(raw_recent, recent_any, 1.0)                            # raw = zone-free, so a shifted camera can still teach
 raw_gone = edge(raw_missing)
 vanish_teach = gate(1.5)
 snn.create_synapse(raw_gone, vanish_teach, 1.0)
@@ -481,11 +495,48 @@ member = {k: latch() for k in interior}
 for k in interior:
     snn.create_synapse(blob_tiles[k], hit[k], weight=1.0)
     snn.create_synapse(teach_any, hit[k], weight=1.0)
-    snn.create_synapse(hit[k], member[k], weight=1.0)       # add rest soon
+    snn.create_synapse(hit[k], hit_count[k], weight=1.0)     # 2 hits -> member, one stray vanish can't make a zone
     snn.create_synapse(hit_count[k], member[k], weight=1.0)
 
-seed_far_box = False              # False = learn from nothing (test), True = start from FAR_BOX tiles
-far_box_tiles = [k for k in interior if 8 <= k % TILE_COLS <= 10 and 5 <= k // TILE_COLS <= 6]   # tiles FAR_BOX covers (974-1239 x, 604-755 y)
+# near zone: tiles near-sized planes fly through (raw blob >= 100 px moving up/down for 1 s), same 2-hit rule
+all_tiles = range(TILE_COLS * TILE_ROWS)                                     # edges allowed, planes enter at the top
+raw_big = gate(99.5)                                                        # raw area >= 100 px (min_near_area)
+near_fly = gate(1.5)                                                        # big AND moving up/down this frame
+snn.create_synapse(raw_big, near_fly, 1.0)
+snn.create_synapse(moving_v, near_fly, 1.0)
+snn.create_synapse(blind, near_fly, INH)
+near_teach = counter(30)                                                    # 1 s of near flight
+snn.create_synapse(near_fly, near_teach, 1.0)
+near_hit = {k: gate(1.5) for k in all_tiles}
+near_hit_count = {k: snn.create_neuron(threshold=1.5, leak=0) for k in all_tiles}
+near_member = {k: latch() for k in all_tiles}
+for k in all_tiles:
+    snn.create_synapse(blob_tiles[k], near_hit[k], weight=1.0)
+    snn.create_synapse(near_teach, near_hit[k], weight=1.0)
+    snn.create_synapse(near_hit[k], near_hit_count[k], weight=1.0)
+    snn.create_synapse(near_hit_count[k], near_member[k], weight=1.0)
+
+# day-one seeds: the old hand-drawn boxes, only used to switch zone latches on at the start (not zones anymore)
+SEED_NEAR_BOX = (468, 1, 967, 747)
+SEED_FAR_BOX = (974, 604, 265, 151)
+FRAME_W, FRAME_H = 1920, 1080
+seed_zones = True                 # False = learn from nothing
+seed_overlap = 0.25               # tile is seeded if >= 25% of it is inside the old box
+
+def box_tiles(box, tiles):
+    x, y, w, h = box
+    tw, th = FRAME_W // TILE_COLS, FRAME_H // TILE_ROWS
+    out = []
+    for k in tiles:
+        tx, ty = (k % TILE_COLS) * tw, (k // TILE_COLS) * th
+        ox = max(0, min(x + w, tx + tw) - max(x, tx))
+        oy = max(0, min(y + h, ty + th) - max(y, ty))
+        if ox * oy >= seed_overlap * tw * th:
+            out.append(k)
+    return out
+
+far_seed = box_tiles(SEED_FAR_BOX, interior)
+near_seed = box_tiles(SEED_NEAR_BOX, all_tiles)
 
 def neighbors(k):
     row, col = k // TILE_COLS, k % TILE_COLS
@@ -501,6 +552,30 @@ for n in blind_blocks:
     snn.create_synapse(blind, n, weight=INH)                                # no dy / size evidence while blind
 
 ### EVERYTHING ABOVE (besides prints, TRACK) in ac_init, BELOW ac_train
+
+# zone readout: the only place python looks at the network. which zone latches are on -> what each tracker can see
+ZONE_SYNC = round(FPS)            # frames between zone reads (1 s)
+
+def zone_tiles(on):
+    far = [k for k in interior if on[member[k].idx]]
+    near = [k for k in all_tiles if on[near_member[k].idx] and k not in far]   # far zone wins (was: near_mask)
+    return near, far
+
+def zone_box(tiles, shape):       # -> (bounding box, keep mask) for track(), None if no tiles
+    if not tiles:
+        return None
+    th, tw = shape[0] // TILE_ROWS, shape[1] // TILE_COLS
+    rows, cols = [k // TILE_COLS for k in tiles], [k % TILE_COLS for k in tiles]
+    r0, c0 = min(rows), min(cols)
+    keep = np.zeros(((max(rows) - r0 + 1) * th, (max(cols) - c0 + 1) * tw), dtype=np.uint8)
+    for r, c in zip(rows, cols):
+        keep[(r - r0) * th:(r - r0 + 1) * th, (c - c0) * tw:(c - c0 + 1) * tw] = 1
+    return (c0 * tw, r0 * th, keep.shape[1], keep.shape[0]), keep
+
+def print_zones(on):              # # = far zone, + = near zone
+    near, far = zone_tiles(on)
+    for r in range(TILE_ROWS):
+        print("".join("#" if k in far else "+" if k in near else "." for k in range(r * TILE_COLS, (r + 1) * TILE_COLS)))
 
 def get_slope(y_old, y_new):
     delta_y = y_old - y_new
@@ -590,21 +665,33 @@ def run_model(video, reverse_video):
     old_far_area = None
     frame_idx = 0
 
-    snn.add_spike(0, plane_absent, 1.0)                                    # plane_absent starts on, so plane_seen starts off
-    snn.add_spike(0, always_on, 1.0)
-    if seed_far_box:
-        for k in far_box_tiles:
-            snn.add_spike(0, member[k], 1.0)
+    pos = [0]                                                              # frames already simulated; add_spike times are relative to it
+    def spike(t, n, v, **kw):
+        snn.add_spike(t - pos[0], n, v, **kw)
+
+    spike(0, plane_absent, 1.0)                                            # plane_absent starts on, so plane_seen starts off
+    spike(0, always_on, 1.0)
+    if seed_zones:
+        for k in far_seed:
+            spike(0, member[k], 1.0)
+        for k in near_seed:
+            spike(0, near_member[k], 1.0)
+    near_tiles, far_tiles = (near_seed, far_seed) if seed_zones else ([], [])
     encoder_stats["peak_lit_tiles"] = 0
 
     for frame in source:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         mask = backSub.apply(gray)
-        near_mask = mask.copy()
-        near_mask[604:755, 974:1239] = 0
-        near_y, near_area, near_x = track(near_mask, NEAR_BOX, min_near_area, max_near_area)
-        far_y, far_area, far_x = track(mask, FAR_BOX, min_far_area, max_far_area)
-        raw_y, raw_area, raw_x = track(mask, NEAR_BOX, min_far_area, max_near_area)   # raw: no mask, any plane size, only for learning zones
+        if frame_idx % ZONE_SYNC == 0:                                     # every 1 s: simulate what's queued, read the zone latches
+            if frame_idx > pos[0]:
+                snn.simulate(time_steps=frame_idx - pos[0])
+                pos[0] = frame_idx
+                near_tiles, far_tiles = zone_tiles(snn.spike_train[-1])
+            near_zone, far_zone = zone_box(near_tiles, mask.shape), zone_box(far_tiles, mask.shape)
+            full_frame = ((0, 0, mask.shape[1], mask.shape[0]), None)
+        near_y, near_area, near_x = track(mask, near_zone, min_near_area, max_near_area)   # far zone already left out (was: near_mask)
+        far_y, far_area, far_x = track(mask, far_zone, min_far_area, max_far_area)
+        raw_y, raw_area, raw_x = track(mask, full_frame, min_far_area, max_near_area)     # raw: whole frame, only for learning zones
 
         # tiles: raw foreground fraction per tile, blind is decided in neurons
         fg = mask > 0
@@ -612,7 +699,7 @@ def run_model(video, reverse_video):
         tile_frac = fg[:th * TILE_ROWS, :tw * TILE_COLS].reshape(TILE_ROWS, th, TILE_COLS, tw).mean(axis=(1, 3)).ravel()
         for n, frac in zip(tile_layer, tile_frac):
             if frac > tile_lit_frac:                                        # under threshold can't fire it, skip to save memory
-                snn.add_spike(frame_idx, n, float(frac))
+                spike(frame_idx, n, float(frac))
         if frame_idx >= round(FPS):                                         # skip MOG2 warm-up (whole frame is foreground)
             encoder_stats["peak_lit_tiles"] = max(encoder_stats["peak_lit_tiles"], int((tile_frac > tile_lit_frac).sum()))
         # tiles - spiking centroid's tile
@@ -620,29 +707,35 @@ def run_model(video, reverse_video):
         if cy is not None:
             col = int(cx // tw)         # no safeguard b/c not live, will need for other rez in ac_live
             row = int(cy // th)
-            snn.add_spike(frame_idx + 1, blob_tiles[row * TILE_COLS + col], 11.0)
-            snn.add_spike(frame_idx, any_blob, 1.0)
+            spike(frame_idx + 1, blob_tiles[row * TILE_COLS + col], 11.0)
+            spike(frame_idx, any_blob, 1.0)
 
         # raw presence + motion for the zone teachers
         raw_present = float(raw_y is not None)
-        snn.add_spike(frame_idx, raw_blob_in, raw_present)
-        snn.add_spike(frame_idx, raw_noblob_in, 1.0 - raw_present)
+        spike(frame_idx, raw_blob_in, raw_present)
+        spike(frame_idx, raw_noblob_in, 1.0 - raw_present)
+        if raw_y is not None:
+            spike(frame_idx, raw_big, raw_area)
         if raw_y is not None and raw_y_old is not None:
-            snn.add_spike(frame_idx, moving_v, abs(raw_y - raw_y_old))
-            snn.add_spike(frame_idx, moving_x, abs(raw_x - raw_x_old))
+            raw_dy = raw_y - raw_y_old                                      # positive = moving down the screen
+            spike(frame_idx, moving_v, abs(raw_dy))
+            spike(frame_idx, moving_x, abs(raw_x - raw_x_old))
+            spike(frame_idx, raw_jump, abs(raw_dy))
+            spike(frame_idx + 1, raw_down, raw_dy)                          # +1 frame so it lands with raw_jump's veto
+            spike(frame_idx + 1, raw_up, -raw_dy)
         raw_y_old, raw_x_old = raw_y, raw_x
 
         # presence: raw "blob this frame" facts in (through the blind gates), the presence() circuits do the debouncing
         is_blob = float(near_y is not None or far_y is not None)
-        snn.add_spike(frame_idx, plane_blob_in, is_blob)
-        snn.add_spike(frame_idx, plane_noblob_in, 1.0 - is_blob)
+        spike(frame_idx, plane_blob_in, is_blob)
+        spike(frame_idx, plane_noblob_in, 1.0 - is_blob)
         for blob_in, noblob_in, y in ((near_blob_in, near_noblob_in, near_y),
                                       (far_blob_in, far_noblob_in, far_y)):
             present = float(y is not None)
-            snn.add_spike(frame_idx, blob_in, present)
-            snn.add_spike(frame_idx, noblob_in, 1.0 - present)
+            spike(frame_idx, blob_in, present)
+            spike(frame_idx, noblob_in, 1.0 - present)
         if far_y is not None:
-            snn.add_spike(frame_idx, far_big, far_area)
+            spike(frame_idx, far_big, far_area)
 
         for y, y_old, scale, descent, ascent in ((near_y, near_y_old, 1.0, "descent_near", "ascent_near"),
                                                  (far_y, far_y_old, far_dy_scale, "descent_far", "ascent_far")):
@@ -650,15 +743,15 @@ def run_model(video, reverse_video):
                 value = (y - y_old) * scale                                 # = -dy * scale: positive when moving down the screen
                 if descent == "descent_near":
                     for n in down_steps:
-                        snn.add_spike(frame_idx, n, value)
+                        spike(frame_idx, n, value)
                     for n in up_steps:
-                        snn.add_spike(frame_idx, n, -value)
-                snn.add_spike(frame_idx, veto[descent], value)
-                snn.add_spike(frame_idx, veto[ascent], -value)
+                        spike(frame_idx, n, -value)
+                spike(frame_idx, veto[descent], value)
+                spike(frame_idx, veto[ascent], -value)
                 for n in thermometers[descent]:
-                    snn.add_spike(frame_idx + 1, n, value)                  # +1 frame so it lands with its veto
+                    spike(frame_idx + 1, n, value)                  # +1 frame so it lands with its veto
                 for n in thermometers[ascent]:
-                    snn.add_spike(frame_idx + 1, n, -value)
+                    spike(frame_idx + 1, n, -value)
 
         # grow / shrink (left as python for now)
         if near_y is not None and near_y_old is not None:
@@ -669,11 +762,11 @@ def run_model(video, reverse_video):
             if diff_near_area > near_diff_min:
                 value = 1 + (diff_near_area - near_diff_min) * near_slope
                 for n in grow_layer:
-                    snn.add_spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
+                    spike(frame_idx, n, value, exist="add") # set all to exist = add for further "certainty", expierimental
             elif diff_near_area < -near_diff_min:
                 value = 1 + (-diff_near_area - near_diff_min) * near_slope
                 for n in shrink_layer:
-                    snn.add_spike(frame_idx, n, value, exist="add")
+                    spike(frame_idx, n, value, exist="add")
 
         if far_y is not None and far_y_old is not None:
             if old_far_area is None:
@@ -683,11 +776,11 @@ def run_model(video, reverse_video):
             if diff_far_area > far_diff_min:
                 value = 1 + (diff_far_area - far_diff_min) * far_slope
                 for n in grow_layer:
-                    snn.add_spike(frame_idx, n, value, exist='add')
+                    spike(frame_idx, n, value, exist='add')
             elif diff_far_area < -far_diff_min:
                 value = 1 + (-diff_far_area - far_diff_min) * far_slope
                 for n in shrink_layer:
-                    snn.add_spike(frame_idx, n, value, exist='add')
+                    spike(frame_idx, n, value, exist='add')
 
         if near_y is None:
             old_near_area = None
@@ -698,10 +791,10 @@ def run_model(video, reverse_video):
         far_y_old = far_y
         frame_idx += 1
 
+    if frame_idx > pos[0]:
+        snn.simulate(time_steps=frame_idx - pos[0])                        # last partial chunk
     return frame_idx
     
-frame_idx = run_model(video9, reverse_video=False)
-
 # Near
 descent_near_ids = []
 for n in descent_near_layer:                # SuperNeuroMAT looks at neurons as idx, so need ids for each
@@ -786,15 +879,18 @@ ascent_takeoff_before = W[np.ix_(ascent_far_ids[:11], takeoff_ids)].mean()
 
 vanish_landing_before = W[np.ix_(vanish_ids, landing_ids)].mean()
 
-snn.simulate(time_steps=frame_idx) # simulates full stdp training with teacher spike
+frame_idx = run_model(video9, reverse_video=False)    # simulates as it goes (1 s chunks) so zones update during training, stdp + teacher spikes
 print(f"Forward training complete . . . {get_time()}")
 
 # zone check: what the teachers learned on video 9 (a latch that's on spiked on the last step)
 on = snn.ispikes[-1]
 print("vanish_teach:", snn.ispikes[:, vanish_teach.idx].sum(), " frames:", np.where(snn.ispikes[:, vanish_teach.idx])[0])
 print("roll_teach:", snn.ispikes[:, roll_teach.idx].sum(), " frames:", np.where(snn.ispikes[:, roll_teach.idx])[0])
-print("\n".join("".join("#" if k in member and on[member[k].idx] else "." for k in range(r * TILE_COLS, (r + 1) * TILE_COLS))       # GRID showing what it identified 
-                for r in range(TILE_ROWS)))
+print("near_teach:", snn.ispikes[:, near_teach.idx].sum(), " raw_recent frames:", snn.ispikes[:, raw_recent.idx].sum())
+print_zones(on)                                                              # GRID: # far zone, + near zone
+far_hits = {(k // TILE_COLS, k % TILE_COLS): int(snn.ispikes[:, hit[k].idx].sum()) for k in interior if snn.ispikes[:, hit[k].idx].sum()}
+print("far tile hits (row, col): count ->", far_hits)
+near_seed, far_seed = zone_tiles(on)                                         # tests start from what training learned (reset() wipes the latches)
 
 labels = []
 with open(video9_labels) as f:
@@ -854,8 +950,7 @@ snn.reset()                                                              # to cl
 need_diagnostic = False
 if need_diagnostic == True:
 
-    frame_num = run_model(video10, reverse_video=False)
-    snn.simulate(time_steps=frame_num)
+    frame_num = run_model(video10, reverse_video=False)                  # simulates as it goes
     print()
     print("NEAR Descent layer", snn.ispikes[0:frame_num, descent_near_ids ].sum())
     print("NEAR Ascent layer", snn.ispikes[0:frame_num, ascent_near_ids ].sum())
@@ -871,8 +966,8 @@ def test_video(video, video_label, diagnostic_enabled, reversed):
     snn.stdp_setup(Apos, Aneg, positive_update=False, negative_update=False)
     snn.reset()
 
-    frame_num = run_model(video, reverse_video=reversed)
-    snn.simulate(time_steps=frame_num + frames(45))
+    frame_num = run_model(video, reverse_video=reversed)                  # simulates the video itself (1 s chunks)
+    snn.simulate(time_steps=frames(45))                                     # 45 s tail so late landings can decide
     rows = snn.ispikes[0 : frame_num + frames(45)]
 
     landings    = rows[:, landing_decision[0].idx].sum()
@@ -885,6 +980,8 @@ def test_video(video, video_label, diagnostic_enabled, reversed):
           f"(flood at {flood_tiles})")                                     # should be ~0 on video with no camera bumps
     print("Landings:", landings, " Takeoffs:", takeoffs, " Touch-and-goes:", touch_gos)
     print("Operations:", landings + takeoffs + 2 * touch_gos) # In official reporting, touch/go counts as 2 movements
+    if diagnostic_enabled == True:
+        print_zones(snn.spike_train[-1])                                     # zones at the end of this video
 
     if diagnostic_enabled == True:
         measure = {
