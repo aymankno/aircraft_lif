@@ -360,6 +360,7 @@ near_climb_frames = 30      # frames of near ascent (not returned) to call a tak
 near_takeoff_feat = snn.create_neuron(threshold=0.5)
 snn.create_synapse(near_back, near_takeoff_feat, weight=-2.0)
 snn.create_synapse(near_back, takeoff_feat, weight=-2.0)
+snn.create_synapse(far_back, takeoff_feat, weight=-2.0)       # far mirror (was: video 8 touch/go climbed into a takeoff before far_rising caught up)
 snn.create_synapse(ascent_near_layer[0], near_takeoff_feat, weight=1.0, delay=5, stdp_enabled=False)   # delay 5 = returned settles first
 for pre in returned_layer:
     snn.create_synapse(pre, near_takeoff_feat, weight=-2.0, stdp_enabled=False)                        # climbing after a return = touch/go
@@ -393,6 +394,8 @@ snn.create_synapse(plane_gone_layer[0], landing_clear, weight=1.0)
 for cell in vanished_layer:
     snn.create_synapse(cell, landing_clear, weight=-1.0)
 snn.create_synapse(landing_clear, landing_accumulator[0], weight=-0.5 * landing_accumulator[0].threshold)
+for trigger in (vanish_trigger, far_vanish_trigger):
+    snn.create_synapse(trigger, landing_gate[0], weight=-5.0)              # new vanish unlocks (was: plane_gone only, and it fires before a landing is decided)
 
 def track(mask, zone, min_area, max_area):     # zone = (box, keep) from the zone tiles; keep zeroes pixels outside the tiles
     if zone is None:                              # empty zone = nothing to see
@@ -418,7 +421,7 @@ def track(mask, zone, min_area, max_area):     # zone = (box, keep) from the zon
 # TILE NEURONS + 'BLIND":
 TILE_COLS, TILE_ROWS = 16, 9      # 120 px tiles at 1080p, also the grid for dynamic zones SOON
 tile_lit_frac = 0.10              # tile is lit when > 10% foreground
-flood_tiles = 45                  # lit tiles to call a flood
+flood_tiles = 60                  # lit tiles to call a flood (normal footage peaks at 52)
 calm_tiles = 4                    # under this many lit = calm
 flood_frames = 3                  # flood frames to turn blind on
 calm_frames = 15                  # calm frames to turn it off, no timeout so it waits out MOG2
@@ -437,6 +440,22 @@ snn.create_synapse(calm, calm_count, weight=1.0)
 blind = latch()
 set_reset(blind, flood_count, calm_count)
 
+# habituation: tiles busy most of the time (grass, trees, shimmer) get ignored by every tracker until they calm down
+act_frac = 0.005                  # tile is active when > 0.5% foreground
+habit_leak = 0.3                  # active more than 30% of the time -> charges up
+habit_T = 300                     # ~15 s of steady noise to call it noisy; a plane passing or rolling never gets there
+quiet_sec = 20                    # 20 s mostly calm -> tracked again
+act_layer = [gate(act_frac) for i in range(TILE_COLS * TILE_ROWS)]
+habit = [snn.create_neuron(threshold=habit_T, leak=habit_leak) for i in range(TILE_COLS * TILE_ROWS)]
+noisy_tile = [latch() for i in range(TILE_COLS * TILE_ROWS)]
+quiet = [counter(frames(quiet_sec)) for i in range(TILE_COLS * TILE_ROWS)]
+for k in range(TILE_COLS * TILE_ROWS):
+    snn.create_synapse(blind, act_layer[k], INH)                           # a camera bump isn't noise
+    snn.create_synapse(act_layer[k], habit[k], 1.0)
+    snn.create_synapse(noisy_tile[k], quiet[k], 1.0)                       # calm frames count up...
+    snn.create_synapse(act_layer[k], quiet[k], -1.0)                       # ...active frames count down
+    set_reset(noisy_tile[k], habit[k], quiet[k])
+
 def presence_inputs(present_count, missing_count):   # encoder -> gate -> counter so blind can block it (INH on a leaky counter never wears off)
     blob_in, noblob_in = gate(0.5), gate(0.5)
     snn.create_synapse(blob_in, present_count, weight=1.0)
@@ -445,12 +464,33 @@ def presence_inputs(present_count, missing_count):   # encoder -> gate -> counte
     snn.create_synapse(blind, noblob_in, weight=INH)
     return blob_in, noblob_in
 
+def neighbors(k):
+    row, col = k // TILE_COLS, k % TILE_COLS
+    return [r * TILE_COLS + c for r in (row - 1, row, row + 1) for c in (col - 1, col, col + 1)
+            if 0 <= r < TILE_ROWS and 0 <= c < TILE_COLS]
+
 blob_tiles = [latch() for i in range(TILE_COLS * TILE_ROWS)]      # blob tiles, just one tile representing location of blobs centroid. for dynamic zones
-any_blob = gate(0.5)
-for neuron in blob_tiles:
-    snn.create_synapse(any_blob, neuron, weight=-10.0)          # if a blob, make EVERYTHING false except the tile the blob's centroid is in (which gets +11 weight)
 raw_present_count, raw_missing_count, raw_seen, raw_missing = presence()
 raw_blob_in, raw_noblob_in = presence_inputs(raw_present_count, raw_missing_count)
+
+# pointer continuity: while a plane is followed the pointer can only step to a neighbouring tile, so filter noise blob
+free_count = counter(15)                                                    # raw gone 2 s + 0.5 s
+snn.create_synapse(raw_missing, free_count, 1.0)
+ptr_free = latch()
+set_reset(ptr_free, free_count, raw_present_count)
+ptr_empty = gate(0.5)                                                       # always_on AND no tile lit
+snn.create_synapse(always_on, ptr_empty, 1.0)
+for n in blob_tiles:
+    snn.create_synapse(n, ptr_empty, -1.0)
+tile_in = [gate(2.5) for i in range(TILE_COLS * TILE_ROWS)]                 # encoder +2 (centroid here) AND (next to pointer OR free OR empty)
+for k in range(TILE_COLS * TILE_ROWS):
+    snn.create_synapse(blind, tile_in[k], INH)
+    for n in neighbors(k):
+        snn.create_synapse(blob_tiles[n], tile_in[k], 1.0)
+    snn.create_synapse(ptr_free, tile_in[k], 1.0)
+    snn.create_synapse(ptr_empty, tile_in[k], 1.0)
+    for j in range(TILE_COLS * TILE_ROWS):                                  # accepted tile switches itself on, every other tile off, same step (no hub race)
+        snn.create_synapse(tile_in[k], blob_tiles[j], 11.0 if j == k else -10.0)
 raw_down, raw_up, raw_jump = gate(0.25), gate(0.25), gate(6 - EPS)          # raw dy >= 0.5 px down / up; jump = blob swap, not motion
 raw_descent_count = snn.create_neuron(threshold=5, leak=0.1)                # mirror of far_descent_count (slow far descents count too)
 snn.create_synapse(raw_down, raw_descent_count, 1.0)
@@ -472,6 +512,9 @@ vanish_teach = gate(1.5)
 snn.create_synapse(raw_gone, vanish_teach, 1.0)
 snn.create_synapse(recent_any, vanish_teach, 1.0)   #
 snn.create_synapse(blind, vanish_teach, INH)
+for k in range(TILE_COLS * TILE_ROWS):
+    if not (0 < k // TILE_COLS < TILE_ROWS - 1 and 0 < k % TILE_COLS < TILE_COLS - 1):
+        snn.create_synapse(blob_tiles[k], vanish_teach, INH)               # last seen on the frame edge = flew out of shot, not the ground line
 moving_v = gate(0.5)                                                        # |raw dy| >= 1 px
 moving_x = gate(0.25)                                                       # |raw dx| >= 0.5 px (x sits on a 0.5 px grid)
 roll_frame = gate(0.5)
@@ -511,6 +554,9 @@ near_hit = {k: gate(1.5) for k in all_tiles}
 near_hit_count = {k: snn.create_neuron(threshold=1.5, leak=0) for k in all_tiles}
 near_member = {k: latch() for k in all_tiles}
 for k in all_tiles:
+    for n in neighbors(k):
+        if n in member:
+            snn.create_synapse(member[n], near_hit[k], INH)                # next to the far zone = runway, never near (was: near_mask)
     snn.create_synapse(blob_tiles[k], near_hit[k], weight=1.0)
     snn.create_synapse(near_teach, near_hit[k], weight=1.0)
     snn.create_synapse(near_hit[k], near_hit_count[k], weight=1.0)
@@ -521,7 +567,7 @@ SEED_NEAR_BOX = (468, 1, 967, 747)
 SEED_FAR_BOX = (974, 604, 265, 151)
 FRAME_W, FRAME_H = 1920, 1080
 seed_zones = True                 # False = learn from nothing
-seed_overlap = 0.25               # tile is seeded if >= 25% of it is inside the old box
+seed_overlap = 0.5                # tile is seeded if >= 50% of it is inside the old box (0.25 pulled in the noisy strip under the far box)
 
 def box_tiles(box, tiles):
     x, y, w, h = box
@@ -537,11 +583,31 @@ def box_tiles(box, tiles):
 
 far_seed = box_tiles(SEED_FAR_BOX, interior)
 near_seed = box_tiles(SEED_NEAR_BOX, all_tiles)
+noisy_seed = []                   # filled after training, so tests start knowing which tiles are noise
 
-def neighbors(k):
-    row, col = k // TILE_COLS, k % TILE_COLS
-    return [r * TILE_COLS + c for r in (row - 1, row, row + 1) for c in (col - 1, col, col + 1)
-            if 0 <= r < TILE_ROWS and 0 <= c < TILE_COLS]
+# far zone forgets: a vanish away from a far tile = strike, 3 strikes and it's out, a vanish on it clears its strikes ONLY ON EVENTS; planned field can get pretty quiet!
+miss, strike1, strike2, drop = {}, {}, {}, {}
+for k in interior:
+    miss[k] = gate(1.5)                                                    # member AND vanish AND plane not in k's 3x3
+    snn.create_synapse(member[k], miss[k], 1.0)
+    snn.create_synapse(vanish_teach, miss[k], 1.0)
+    for n in neighbors(k):
+        snn.create_synapse(blob_tiles[n], miss[k], -2.0)
+    strike1[k] = latch()
+    strike2[k] = snn.create_neuron(threshold=1.5)                         # miss AND strike1 sets it, self-loop 2 holds it
+    snn.create_synapse(strike2[k], strike2[k], 2.0)
+    drop[k] = gate(1.5)                                                    # miss AND strike2 = third strike
+    snn.create_synapse(miss[k], strike1[k], 1.0)
+    snn.create_synapse(miss[k], strike2[k], 1.0)
+    snn.create_synapse(strike1[k], strike2[k], 1.0)
+    snn.create_synapse(miss[k], drop[k], 1.0)
+    snn.create_synapse(strike2[k], drop[k], 1.0)
+    for n in (member[k], strike1[k], strike2[k]):
+        snn.create_synapse(drop[k], n, -10.0)
+    for n in neighbors(k):                                                 # vanished here or next door again = trust restored
+        if n in hit:
+            snn.create_synapse(hit[n], strike1[k], -10.0)
+            snn.create_synapse(hit[n], strike2[k], -10.0)
 
 plane_blob_in, plane_noblob_in = presence_inputs(plane_present_count, plane_missing_count)
 near_blob_in, near_noblob_in = presence_inputs(near_present_count, near_missing_count)
@@ -559,7 +625,13 @@ ZONE_SYNC = round(FPS)            # frames between zone reads (1 s)
 def zone_tiles(on):
     far = [k for k in interior if on[member[k].idx]]
     near = [k for k in all_tiles if on[near_member[k].idx] and k not in far]   # far zone wins (was: near_mask)
-    return near, far
+    noisy = [k for k in all_tiles if on[noisy_tile[k].idx]]
+    return near, far, noisy
+
+def tracked(near, far, noisy):    # noisy tiles are left out of every tracker; raw also looks 1 tile around the zones (so zones can move)
+    look = {n for k in near + far for n in neighbors(k)}
+    return ([k for k in near if k not in noisy], [k for k in far if k not in noisy],
+            [k for k in sorted(look) if k not in noisy])
 
 def zone_box(tiles, shape):       # -> (bounding box, keep mask) for track(), None if no tiles
     if not tiles:
@@ -572,10 +644,10 @@ def zone_box(tiles, shape):       # -> (bounding box, keep mask) for track(), No
         keep[(r - r0) * th:(r - r0 + 1) * th, (c - c0) * tw:(c - c0 + 1) * tw] = 1
     return (c0 * tw, r0 * th, keep.shape[1], keep.shape[0]), keep
 
-def print_zones(on):              # # = far zone, + = near zone
-    near, far = zone_tiles(on)
+def print_zones(on):              # # = far zone, + = near zone, x = noisy (ignored)
+    near, far, noisy = zone_tiles(on)
     for r in range(TILE_ROWS):
-        print("".join("#" if k in far else "+" if k in near else "." for k in range(r * TILE_COLS, (r + 1) * TILE_COLS)))
+        print("".join("x" if k in noisy else "#" if k in far else "+" if k in near else "." for k in range(r * TILE_COLS, (r + 1) * TILE_COLS)))
 
 def get_slope(y_old, y_new):
     delta_y = y_old - y_new
@@ -676,7 +748,10 @@ def run_model(video, reverse_video):
             spike(0, member[k], 1.0)
         for k in near_seed:
             spike(0, near_member[k], 1.0)
+    for k in noisy_seed:
+        spike(0, noisy_tile[k], 1.0)
     near_tiles, far_tiles = (near_seed, far_seed) if seed_zones else ([], [])
+    noisy_tiles = list(noisy_seed)
     encoder_stats["peak_lit_tiles"] = 0
 
     for frame in source:
@@ -686,12 +761,12 @@ def run_model(video, reverse_video):
             if frame_idx > pos[0]:
                 snn.simulate(time_steps=frame_idx - pos[0])
                 pos[0] = frame_idx
-                near_tiles, far_tiles = zone_tiles(snn.spike_train[-1])
-            near_zone, far_zone = zone_box(near_tiles, mask.shape), zone_box(far_tiles, mask.shape)
-            full_frame = ((0, 0, mask.shape[1], mask.shape[0]), None)
+                near_tiles, far_tiles, noisy_tiles = zone_tiles(snn.spike_train[-1])
+            near_see, far_see, raw_see = tracked(near_tiles, far_tiles, noisy_tiles)
+            near_zone, far_zone, raw_zone = zone_box(near_see, mask.shape), zone_box(far_see, mask.shape), zone_box(raw_see, mask.shape)
         near_y, near_area, near_x = track(mask, near_zone, min_near_area, max_near_area)   # far zone already left out (was: near_mask)
         far_y, far_area, far_x = track(mask, far_zone, min_far_area, max_far_area)
-        raw_y, raw_area, raw_x = track(mask, full_frame, min_far_area, max_near_area)     # raw: whole frame, only for learning zones
+        raw_y, raw_area, raw_x = track(mask, raw_zone, min_far_area, max_near_area)       # raw: no size split, only for learning zones
 
         # tiles: raw foreground fraction per tile, blind is decided in neurons
         fg = mask > 0
@@ -700,6 +775,9 @@ def run_model(video, reverse_video):
         for n, frac in zip(tile_layer, tile_frac):
             if frac > tile_lit_frac:                                        # under threshold can't fire it, skip to save memory
                 spike(frame_idx, n, float(frac))
+        for n, frac in zip(act_layer, tile_frac):                           # habituation input
+            if frac > act_frac:
+                spike(frame_idx, n, float(frac))
         if frame_idx >= round(FPS):                                         # skip MOG2 warm-up (whole frame is foreground)
             encoder_stats["peak_lit_tiles"] = max(encoder_stats["peak_lit_tiles"], int((tile_frac > tile_lit_frac).sum()))
         # tiles - spiking centroid's tile
@@ -707,8 +785,7 @@ def run_model(video, reverse_video):
         if cy is not None:
             col = int(cx // tw)         # no safeguard b/c not live, will need for other rez in ac_live
             row = int(cy // th)
-            spike(frame_idx + 1, blob_tiles[row * TILE_COLS + col], 11.0)
-            spike(frame_idx, any_blob, 1.0)
+            spike(frame_idx, tile_in[row * TILE_COLS + col], 2.0)           # neurons decide if the pointer may move here
 
         # raw presence + motion for the zone teachers
         raw_present = float(raw_y is not None)
@@ -890,7 +967,8 @@ print("near_teach:", snn.ispikes[:, near_teach.idx].sum(), " raw_recent frames:"
 print_zones(on)                                                              # GRID: # far zone, + near zone
 far_hits = {(k // TILE_COLS, k % TILE_COLS): int(snn.ispikes[:, hit[k].idx].sum()) for k in interior if snn.ispikes[:, hit[k].idx].sum()}
 print("far tile hits (row, col): count ->", far_hits)
-near_seed, far_seed = zone_tiles(on)                                         # tests start from what training learned (reset() wipes the latches)
+print("far tiles dropped (3 strikes):", int(sum(snn.ispikes[:, drop[k].idx].sum() for k in interior)))
+near_seed, far_seed, noisy_seed = zone_tiles(on)                             # tests start from what training learned (reset() wipes the latches)
 
 labels = []
 with open(video9_labels) as f:
