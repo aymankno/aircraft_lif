@@ -362,6 +362,7 @@ snn.create_synapse(near_back, near_takeoff_feat, weight=-2.0)
 snn.create_synapse(near_back, takeoff_feat, weight=-2.0)
 snn.create_synapse(far_back, takeoff_feat, weight=-2.0)       # far mirror (was: video 8 touch/go climbed into a takeoff before far_rising caught up)
 snn.create_synapse(ascent_near_layer[0], near_takeoff_feat, weight=1.0, delay=5, stdp_enabled=False)   # delay 5 = returned settles first
+snn.create_synapse(returned_near, touch_go_feat, -12.0)
 for pre in returned_layer:
     snn.create_synapse(pre, near_takeoff_feat, weight=-2.0, stdp_enabled=False)                        # climbing after a return = touch/go
 near_climb_accumulator = snn.create_neuron(threshold=20, leak=0.1)
@@ -616,8 +617,6 @@ far_blob_in, far_noblob_in = presence_inputs(far_present_count, far_missing_coun
 blind_blocks = [n for layer in thermometers.values() for n in layer] + grow_layer + shrink_layer + down_steps + up_steps + [far_big]
 for n in blind_blocks:
     snn.create_synapse(blind, n, weight=INH)                                # no dy / size evidence while blind
-
-### EVERYTHING ABOVE (besides prints, TRACK) in ac_init, BELOW ac_train
 
 # zone readout: the only place python looks at the network. which zone latches are on -> what each tracker can see
 ZONE_SYNC = round(FPS)            # frames between zone reads (1 s)
