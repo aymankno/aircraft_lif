@@ -362,7 +362,6 @@ snn.create_synapse(near_back, near_takeoff_feat, weight=-2.0)
 snn.create_synapse(near_back, takeoff_feat, weight=-2.0)
 snn.create_synapse(far_back, takeoff_feat, weight=-2.0)       # far mirror (was: video 8 touch/go climbed into a takeoff before far_rising caught up)
 snn.create_synapse(ascent_near_layer[0], near_takeoff_feat, weight=1.0, delay=5, stdp_enabled=False)   # delay 5 = returned settles first
-snn.create_synapse(returned_near, touch_go_feat, -12.0)
 for pre in returned_layer:
     snn.create_synapse(pre, near_takeoff_feat, weight=-2.0, stdp_enabled=False)                        # climbing after a return = touch/go
 near_climb_accumulator = snn.create_neuron(threshold=20, leak=0.1)
@@ -397,6 +396,23 @@ for cell in vanished_layer:
 snn.create_synapse(landing_clear, landing_accumulator[0], weight=-0.5 * landing_accumulator[0].threshold)
 for trigger in (vanish_trigger, far_vanish_trigger):
     snn.create_synapse(trigger, landing_gate[0], weight=-5.0)              # new vanish unlocks (was: plane_gone only, and it fires before a landing is decided)
+
+# touch / go vs go-around logic
+came_down = latch()                                                     # came_down representing descend w/o disappear
+for d in (recent_descent, far_recent_descent):
+    snn.create_synapse(edge(d), came_down, 1.0)
+for off in (vanish_trigger, far_vanish_trigger, plane_gone_layer[0]):
+    snn.create_synapse(off, came_down, -10.0)
+
+climb_didnt_vanish = gate(1.5)                                          # represent if came_down, then ascend, NO DISAPPEAR
+snn.create_synapse(came_down, climb_didnt_vanish, 1.0)
+snn.create_synapse(ascent_far_layer[0], climb_didnt_vanish, 0.6)
+snn.create_synapse(ascent_near_layer[0], climb_didnt_vanish, 0.6)
+
+went_around = latch()                                                   # final layer; with set_reset to turn off if gone
+set_reset(went_around, climb_didnt_vanish, plane_gone_layer[0])
+for d in (near_takeoff_feat, takeoff_feat, landing_feat, touch_go_feat):
+    snn.create_synapse(went_around, d, -13.0)
 
 def track(mask, zone, min_area, max_area):     # zone = (box, keep) from the zone tiles; keep zeroes pixels outside the tiles
     if zone is None:                              # empty zone = nothing to see
